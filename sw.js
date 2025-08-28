@@ -14,12 +14,12 @@ const urlsToCache = [
     './assets/js/ui-controller.js',
     './assets/js/utils.js',
     './manifest.json',
-    './assets/icons/icon-192x192.png',
-    './assets/icons/icon-512x512.png',
+    './assets/img/icon-192.png',
+    './assets/img/icon-512.png',
     'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js',
     'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
     'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
-    'https://cdn.jsdelivr.net/npm/chart.js'
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
 ];
 
 // Install event - cache resources

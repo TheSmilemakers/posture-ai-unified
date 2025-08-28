@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "echo 'No build required'",
+  "outputDirectory": ".",
   "headers": [
     {
       "source": "/(.*)",
@@ -71,6 +73,30 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/manifest.json",
+      "destination": "/manifest.json"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "/sw.js"
+    },
+    {
+      "source": "/sw-generated.js",
+      "destination": "/sw-generated.js"
+    },
+    {
+      "source": "/workbox-:file.js",
+      "destination": "/workbox-:file.js"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
