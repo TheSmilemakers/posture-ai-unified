@@ -10,7 +10,8 @@
     "build:css": "npx clean-css-cli -o assets/css/styles.min.css assets/css/styles.css",
     "build:sw": "npx workbox generateSW workbox-config.js",
     "preview": "python3 -m http.server 8000",
-    "clean": "rm -f assets/js/app.min.js assets/css/styles.min.css workbox-*.js"
+    "clean": "rm -f assets/js/app.min.js assets/css/styles.min.css workbox-*.js",
+    "test:db": "node database/test-database.js"
   },
   "keywords": [
     "posture",
