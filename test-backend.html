@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Integration Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        .success {
+            color: #48bb78;
+            background: #f0fff4;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .error {
+            color: #e53e3e;
+            background: #fff5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        pre {
+            background: #f7fafc;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        input {
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Posture AI Backend Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Test Database Connection</h2>
+        <p>Check if the database schema is properly set up</p>
+        <button onclick="testDatabase()">Test Connection</button>
+        <div id="db-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Create Test Patient</h2>
+        <p>Create a new patient in the database</p>
+        <input type="text" id="patient-name" placeholder="Patient Name" value="John Doe">
+        <input type="email" id="patient-email" placeholder="Email (optional)" value="john.doe@test.com">
+        <button onclick="createPatient()">Create Patient</button>
+        <div id="patient-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Create Assessment</h2>
+        <p>Create a new assessment for a patient</p>
+        <input type="text" id="patient-id" placeholder="Patient ID" readonly>
+        <select id="assessment-type">
+            <option value="quick">Quick</option>
+            <option value="clinical" selected>Clinical</option>
+            <option value="advanced">Advanced</option>
+        </select>
+        <button onclick="createAssessment()">Create Assessment</button>
+        <div id="assessment-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Store Analysis Results</h2>
+        <p>Simulate storing posture analysis measurements</p>
+        <input type="text" id="assessment-id" placeholder="Assessment ID" readonly>
+        <button onclick="storeAnalysis()">Store Sample Analysis</button>
+        <div id="analysis-result"></div>
+    </div>
+
+    <script>
+        // Base URL - update this if testing locally
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8000/api' 
+            : '/api';
+
+        async function testDatabase() {
+            const resultDiv = document.getElementById('db-result');
+            resultDiv.innerHTML = 'Testing connection...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/test-db`);
+                const data = await response.json();
+                
+                if (data.connected) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Database connected successfully!
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Connection failed: ${error.message}
+                        <br><br>
+                        Make sure you:
+                        <ol>
+                            <li>Ran the schema SQL in Supabase</li>
+                            <li>Have the correct API endpoint</li>
+                            <li>Started the local server if testing locally</li>
+                        </ol>
+                    </div>
+                `;
+            }
+        }
+
+        async function createPatient() {
+            const resultDiv = document.getElementById('patient-result');
+            const name = document.getElementById('patient-name').value;
+            const email = document.getElementById('patient-email').value;
+            
+            if (!name) {
+                resultDiv.innerHTML = '<div class="error">Please enter a patient name</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Creating patient...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/patients/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('patient-id').value = data.patient.id;
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Patient created successfully!
+                            <br>Patient Code: ${data.patient.patientCode}
+                            <br>Patient ID: ${data.patient.id}
+                            <pre>${JSON.stringify(data.patient, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function createAssessment() {
+            const resultDiv = document.getElementById('assessment-result');
+            const patientId = document.getElementById('patient-id').value;
+            const assessmentType = document.getElementById('assessment-type').value;
+            
+            if (!patientId) {
+                resultDiv.innerHTML = '<div class="error">Please create a patient first</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Creating assessment...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/assessments/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        patientId, 
+                        assessmentType,
+                        notes: 'Test assessment from backend integration' 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('assessment-id').value = data.assessment.id;
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Assessment created successfully!
+                            <br>Assessment ID: ${data.assessment.id}
+                            <pre>${JSON.stringify(data.assessment, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function storeAnalysis() {
+            const resultDiv = document.getElementById('analysis-result');
+            const assessmentId = document.getElementById('assessment-id').value;
+            
+            if (!assessmentId) {
+                resultDiv.innerHTML = '<div class="error">Please create an assessment first</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Storing analysis results...';
+            
+            // Sample measurements (simulating MediaPipe output)
+            const sampleMeasurements = [
+                { type: 'forward_head_angle', value: 15.5, unit: 'degrees', confidence: 0.92, viewType: 'side' },
+                { type: 'shoulder_tilt', value: 3.2, unit: 'degrees', confidence: 0.89, viewType: 'front' },
+                { type: 'hip_shift', value: 8.1, unit: 'mm', confidence: 0.87, viewType: 'front' },
+                { type: 'knee_valgus_angle', value: 5.5, unit: 'degrees', confidence: 0.90, viewType: 'front' }
+            ];
+            
+            const samplePatterns = [
+                { type: 'forward_head_posture', severity: 'moderate', confidence: 0.88 },
+                { type: 'upper_crossed_syndrome', severity: 'mild', confidence: 0.75 }
+            ];
+            
+            try {
+                const response = await fetch(`${API_BASE}/assessments/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        assessmentId,
+                        measurements: sampleMeasurements,
+                        patterns: samplePatterns,
+                        overallScore: 75
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Analysis stored successfully!
+                            <br>Assessment ID: ${data.assessmentId}
+                            <br>Measurements stored: ${data.measurementCount}
+                            <br><br>
+                            <strong>Sample data stored:</strong>
+                            <pre>${JSON.stringify({ measurements: sampleMeasurements, patterns: samplePatterns }, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#667eea">
     <meta name="description" content="AI-powered posture analysis with clinical-grade biomechanical assessment">
@@ -17,13 +18,31 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- PWA Support -->
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="manifest.json">
     
     <!-- External Stylesheets -->
     <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
     <div class="app-container">
+        <!-- Clinical Testing Disclaimer -->
+        <div class="clinical-disclaimer">
+            <div class="disclaimer-content">
+                <h3>⚠️ CLINICAL TESTING VERSION - IMPORTANT NOTICE</h3>
+                <p><strong>This is a testing version for clinical evaluation purposes only.</strong></p>
+                <ul>
+                    <li>All clients must provide written informed consent before use</li>
+                    <li>Data is stored locally in your browser only (not HIPAA compliant)</li>
+                    <li>Not intended for diagnosis or treatment decisions</li>
+                    <li>Results should be verified by qualified healthcare professionals</li>
+                    <li>By proceeding, you confirm patient consent has been obtained</li>
+                </ul>
+                <button class="btn btn-warning" onclick="document.querySelector('.clinical-disclaimer').style.display='none'">
+                    I Understand - Proceed with Testing
+                </button>
+            </div>
+        </div>
+
         <!-- Main Header -->
         <header class="app-header">
             <h1>🦴 Posture AI Analysis</h1>
@@ -217,7 +236,7 @@
                                     Front View
                                 </h3>
                                 <div class="upload-area">
-                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('front', event)">
+                                    <input type="file" accept="image/*" onchange="handleFileUpload('clinical-front', event)">
                                     <p style="font-size: 2rem;">👤</p>
                                     <p>Click to upload front view</p>
                                 </div>
@@ -232,7 +251,7 @@
                                     Side View
                                 </h3>
                                 <div class="upload-area">
-                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('side', event)">
+                                    <input type="file" accept="image/*" onchange="handleFileUpload('clinical-side', event)">
                                     <p style="font-size: 2rem;">🚶</p>
                                     <p>Click to upload side view</p>
                                 </div>
@@ -247,7 +266,7 @@
                                     Back View
                                 </h3>
                                 <div class="upload-area">
-                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('back', event)">
+                                    <input type="file" accept="image/*" onchange="handleFileUpload('clinical-back', event)">
                                     <p style="font-size: 2rem;">🔄</p>
                                     <p>Click to upload back view</p>
                                 </div>
@@ -309,7 +328,7 @@
                                 Front View
                             </h3>
                             <div class="upload-area">
-                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('front', event)">
+                                <input type="file" accept="image/*" onchange="handleFileUpload('advanced-front', event)">
                                 <p style="font-size: 2rem;">👤</p>
                                 <p>Click to upload front view</p>
                             </div>
@@ -324,7 +343,7 @@
                                 Side View
                             </h3>
                             <div class="upload-area">
-                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('side', event)">
+                                <input type="file" accept="image/*" onchange="handleFileUpload('advanced-side', event)">
                                 <p style="font-size: 2rem;">🚶</p>
                                 <p>Click to upload side view</p>
                             </div>
@@ -339,7 +358,7 @@
                                 Back View
                             </h3>
                             <div class="upload-area">
-                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('back', event)">
+                                <input type="file" accept="image/*" onchange="handleFileUpload('advanced-back', event)">
                                 <p style="font-size: 2rem;">🔄</p>
                                 <p>Click to upload back view</p>
                             </div>

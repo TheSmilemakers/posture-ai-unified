@@ -4,6 +4,85 @@
  */
 
 /* ===========================
+   Clinical Disclaimer Styles
+   =========================== */
+.clinical-disclaimer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.disclaimer-content {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s ease-out;
+}
+
+.disclaimer-content h3 {
+    color: #e53e3e;
+    font-size: 1.4rem;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.disclaimer-content p {
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+    color: #2d3748;
+}
+
+.disclaimer-content ul {
+    margin: 20px 0;
+    padding-left: 25px;
+}
+
+.disclaimer-content li {
+    margin-bottom: 10px;
+    color: #4a5568;
+}
+
+.btn-warning {
+    background: #f56565;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 20px;
+    transition: background 0.3s;
+}
+
+.btn-warning:hover {
+    background: #e53e3e;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ===========================
    Reset & Base Styles
    =========================== */
 * {
@@ -25,9 +104,9 @@
     --warning-color: #ffc107;
     --danger-color: #dc3545;
     --light-bg: #f8f9fa;
-    --dark-text: #495057;
+    --dark-text: #2d3748;    /* Improved from #495057 - better contrast */
     --border-color: #e9ecef;
-    --text-muted: #6c757d;
+    --text-muted: #595959;   /* Improved from #6c757d - meets WCAG AA */
     
     /* Spacing System */
     --spacing-xs: 0.25rem;
@@ -949,4 +1028,116 @@ a:hover {
     font-family: 'System UI';
     src: local('system-ui'), local('-apple-system'), local('BlinkMacSystemFont');
     font-display: swap;
+}/* ===========================
+   Mobile-Specific Improvements
+   =========================== */
+
+/* Enhanced contrast and readability on mobile devices */
+@media (max-width: 768px) {
+    /* Ensure minimum font size for accessibility */
+    body {
+        font-size: 16px; /* Prevents iOS zoom on form inputs */
+        line-height: 1.7; /* Better line spacing on small screens */
+    }
+    
+    /* Darker text colors for better contrast on mobile */
+    .mode-description,
+    .mode-features li,
+    .info-card p,
+    .tab-btn,
+    .form-label,
+    .metric-label,
+    .metric-title,
+    .chart-legend {
+        color: var(--dark-text) !important; /* Use darker color on mobile */
+        font-weight: 500; /* Slightly bolder for clarity */
+    }
+    
+    /* Ensure mode description specifically is dark */
+    .mode-description {
+        color: var(--dark-text) !important;
+        font-weight: 500;
+        line-height: 1.6;
+    }
+    
+    /* Increase font sizes for better readability */
+    .mode-features li {
+        font-size: var(--font-size-base); /* Up from --font-size-sm */
+    }
+    
+    .mode-title {
+        font-size: 1.25rem; /* Ensure titles are prominent */
+    }
+    
+    .btn {
+        font-size: 1rem; /* Ensure buttons are readable */
+        font-weight: 600;
+    }
+    
+    /* Better touch targets */
+    .btn,
+    .tab-btn,
+    .mode-card {
+        min-height: 48px; /* iOS recommended touch target */
+    }
+    
+    /* Increase contrast for placeholders */
+    input::placeholder,
+    textarea::placeholder {
+        color: #4a5568;
+        opacity: 1;
+    }
+}
+
+/* High contrast mode support for accessibility */
+@media (prefers-contrast: high) {
+    :root {
+        --text-muted: #2d3748;
+        --dark-text: #1a202c;
+        --border-color: #cbd5e0;
+        --primary-color: #5a45d6;
+        --secondary-color: #6b46c1;
+    }
+    
+    /* Increase all text weights */
+    body {
+        font-weight: 500;
+    }
+    
+    /* Stronger borders */
+    .mode-card,
+    .metric-card,
+    .info-card,
+    .form-input,
+    .form-select {
+        border-width: 2px;
+    }
+}
+
+/* Specific fixes for Android devices */
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2) {
+    /* Android often renders text lighter */
+    body {
+        -webkit-font-smoothing: subpixel-antialiased;
+        text-rendering: optimizeLegibility;
+    }
+}
+
+/* Dark mode fixes for mobile */
+@media (prefers-color-scheme: dark) and (max-width: 768px) {
+    :root {
+        --text-muted: #e2e8f0; /* Much lighter for dark mode */
+        --dark-text: #f7fafc; /* Nearly white */
+    }
+}
+
+/* Landscape orientation improvements */
+@media (max-width: 768px) and (orientation: landscape) {
+    .app-header {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    .mode-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
