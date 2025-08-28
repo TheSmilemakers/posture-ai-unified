@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="AI-powered posture analysis with clinical-grade biomechanical assessment">
+    
+    <title>Posture AI - Advanced Biomechanical Analysis</title>
+    
+    <!-- External Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- External Stylesheets -->
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Header -->
+        <header class="app-header">
+            <h1>🦴 Posture AI Analysis</h1>
+            <p>Two Tonys Treatment Clinic - Advanced Biomechanical Assessment</p>
+        </header>
+
+        <!-- Mode Selection Screen -->
+        <div id="mode-selection" class="mode-selection">
+            <div class="text-center">
+                <h2>Choose Your Assessment Mode</h2>
+                <p>Select the type of analysis that best fits your needs</p>
+            </div>
+            
+            <div class="mode-grid">
+                <!-- Quick Assessment Mode -->
+                <div class="mode-card" onclick="selectMode('quick')">
+                    <span class="mode-icon">📱</span>
+                    <h3 class="mode-title">Quick Assessment</h3>
+                    <p class="mode-description">
+                        Fast, mobile-optimized posture check with instant results
+                    </p>
+                    <ul class="mode-features">
+                        <li>Live camera capture</li>
+                        <li>Basic posture metrics</li>
+                        <li>Instant recommendations</li>
+                        <li>2-minute analysis</li>
+                    </ul>
+                </div>
+
+                <!-- Clinical Assessment Mode -->
+                <div class="mode-card" onclick="selectMode('clinical')">
+                    <span class="mode-icon">🏥</span>
+                    <h3 class="mode-title">Clinical Assessment</h3>
+                    <p class="mode-description">
+                        Complete clinical workflow with detailed documentation
+                    </p>
+                    <ul class="mode-features">
+                        <li>Client management</li>
+                        <li>Photo annotations</li>
+                        <li>Movement prescription</li>
+                        <li>PDF report generation</li>
+                    </ul>
+                </div>
+
+                <!-- Advanced Biomechanics Mode -->
+                <div class="mode-card" onclick="selectMode('advanced')">
+                    <span class="mode-icon">🔬</span>
+                    <h3 class="mode-title">Advanced Biomechanics</h3>
+                    <p class="mode-description">
+                        Research-grade analysis with comprehensive metrics
+                    </p>
+                    <ul class="mode-features">
+                        <li>33-point detection</li>
+                        <li>Force distribution</li>
+                        <li>Risk assessment</li>
+                        <li>Clinical predictions</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area (Hidden Initially) -->
+        <div id="main-content" class="main-content">
+            <!-- Navigation Bar -->
+            <nav class="nav-bar">
+                <button class="nav-back" onclick="backToModeSelection()">
+                    <span>←</span>
+                    <span>Back</span>
+                </button>
+                <span class="nav-title" id="mode-title">Quick Assessment</span>
+                <div></div>
+            </nav>
+
+            <!-- Quick Assessment Mode -->
+            <div id="quick-mode" class="mode-content hidden">
+                <!-- Photo Capture Section -->
+                <div class="tab-content active">
+                    <h2>Quick Posture Check</h2>
+                    <p>Take or upload a photo for instant analysis</p>
+                    
+                    <div class="camera-container mt-lg">
+                        <video id="quick-camera" class="camera-view hidden" autoplay playsinline></video>
+                        <canvas id="quick-canvas" class="pose-canvas"></canvas>
+                        <img id="quick-preview" class="uploaded-image hidden" />
+                    </div>
+                    
+                    <div class="action-buttons mt-lg">
+                        <button class="btn btn-large" onclick="startCamera('quick')">
+                            <span>📸</span>
+                            <span>Use Camera</span>
+                        </button>
+                        <label class="btn btn-large">
+                            <span>📁</span>
+                            <span>Upload Photo</span>
+                            <input type="file" accept="image/*" onchange="handleFileUpload('quick', event)" style="display: none;">
+                        </label>
+                    </div>
+                    
+                    <button id="quick-analyze-btn" class="btn btn-success btn-large btn-block mt-lg hidden" onclick="analyzePosture('quick')">
+                        <span>🔬</span>
+                        <span>Analyze Posture</span>
+                    </button>
+                    
+                    <!-- Quick Results -->
+                    <div id="quick-results" class="results-container hidden">
+                        <div class="score-card">
+                            <div class="score-value" id="quick-score">--</div>
+                            <div class="score-label">Posture Score</div>
+                        </div>
+                        
+                        <div class="metrics-grid" id="quick-metrics">
+                            <!-- Metrics will be populated here -->
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3>🎯 Quick Recommendations</h3>
+                            <div id="quick-recommendations">
+                                <!-- Recommendations will be populated here -->
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn" onclick="saveQuickResults()">
+                                <span>💾</span>
+                                <span>Save Results</span>
+                            </button>
+                            <button class="btn btn-secondary" onclick="resetQuickAnalysis()">
+                                <span>🔄</span>
+                                <span>New Analysis</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clinical Assessment Mode -->
+            <div id="clinical-mode" class="mode-content hidden">
+                <!-- Tab Navigation -->
+                <div class="tab-nav">
+                    <button class="tab-btn active" onclick="showTab('clinical', 'client-info')">Client Info</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'assessment')">Assessment</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'north-star')">North Star</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'release')">Release</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'reset')">Reset</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'rebuild')">Rebuild</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'summary')">Summary</button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="tab-contents">
+                    <!-- Client Info Tab -->
+                    <div id="clinical-client-info" class="tab-content active">
+                        <h2>Client Information</h2>
+                        <form id="client-form">
+                            <div class="form-group">
+                                <label class="form-label">Client Name</label>
+                                <input type="text" class="form-input" id="client-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Assessment Date</label>
+                                <input type="date" class="form-input" id="assessment-date" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Assessed By</label>
+                                <input type="text" class="form-input" id="assessor-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Sessions per Week</label>
+                                <select class="form-select" id="sessions-per-week">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3" selected>3</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-large" onclick="showTab('clinical', 'assessment')">
+                                Next: Assessment
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Assessment Tab -->
+                    <div id="clinical-assessment" class="tab-content">
+                        <h2>Posture Assessment</h2>
+                        <p>Upload photos and annotate findings for each view</p>
+                        
+                        <div class="photo-grid">
+                            <!-- Front View -->
+                            <div class="photo-card" id="clinical-front-card">
+                                <h3>
+                                    <span class="status-icon" id="clinical-front-status">📷</span>
+                                    Front View
+                                </h3>
+                                <div class="upload-area">
+                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('front', event)">
+                                    <p style="font-size: 2rem;">👤</p>
+                                    <p>Click to upload front view</p>
+                                </div>
+                                <img id="clinical-front-preview" class="uploaded-image hidden">
+                                <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
+                            </div>
+
+                            <!-- Side View -->
+                            <div class="photo-card" id="clinical-side-card">
+                                <h3>
+                                    <span class="status-icon" id="clinical-side-status">📷</span>
+                                    Side View
+                                </h3>
+                                <div class="upload-area">
+                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('side', event)">
+                                    <p style="font-size: 2rem;">🚶</p>
+                                    <p>Click to upload side view</p>
+                                </div>
+                                <img id="clinical-side-preview" class="uploaded-image hidden">
+                                <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
+                            </div>
+
+                            <!-- Back View -->
+                            <div class="photo-card" id="clinical-back-card">
+                                <h3>
+                                    <span class="status-icon" id="clinical-back-status">📷</span>
+                                    Back View
+                                </h3>
+                                <div class="upload-area">
+                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('back', event)">
+                                    <p style="font-size: 2rem;">🔄</p>
+                                    <p>Click to upload back view</p>
+                                </div>
+                                <img id="clinical-back-preview" class="uploaded-image hidden">
+                                <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary" onclick="showTab('clinical', 'client-info')">Previous</button>
+                            <button class="btn" onclick="showTab('clinical', 'north-star')">Next: North Star</button>
+                        </div>
+                    </div>
+
+                    <!-- Additional Clinical Tabs -->
+                    <div id="clinical-north-star" class="tab-content">
+                        <h2>North Star Posture</h2>
+                        <p>Define the ideal posture goals</p>
+                        <!-- Content here -->
+                    </div>
+
+                    <div id="clinical-release" class="tab-content">
+                        <h2>Release Movements</h2>
+                        <p>Prescribe release exercises</p>
+                        <!-- Content here -->
+                    </div>
+
+                    <div id="clinical-reset" class="tab-content">
+                        <h2>Reset Movements</h2>
+                        <p>Prescribe reset exercises</p>
+                        <!-- Content here -->
+                    </div>
+
+                    <div id="clinical-rebuild" class="tab-content">
+                        <h2>Rebuild Program</h2>
+                        <p>Design strengthening program</p>
+                        <!-- Content here -->
+                    </div>
+
+                    <div id="clinical-summary" class="tab-content">
+                        <h2>Assessment Summary</h2>
+                        <p>Review and generate report</p>
+                        <!-- Content here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Biomechanics Mode -->
+            <div id="advanced-mode" class="mode-content hidden">
+                <div class="tab-content active">
+                    <h2>Advanced Biomechanical Analysis</h2>
+                    <p>Upload front, side, and back view photos for comprehensive analysis</p>
+                    
+                    <div class="photo-grid">
+                        <!-- Front View -->
+                        <div class="photo-card" id="advanced-front-card">
+                            <h3>
+                                <span class="status-icon" id="advanced-front-status">📷</span>
+                                Front View
+                            </h3>
+                            <div class="upload-area">
+                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('front', event)">
+                                <p style="font-size: 2rem;">👤</p>
+                                <p>Click to upload front view</p>
+                            </div>
+                            <img id="advanced-front-preview" class="uploaded-image hidden">
+                            <canvas id="advanced-front-canvas" class="pose-canvas"></canvas>
+                        </div>
+
+                        <!-- Side View -->
+                        <div class="photo-card" id="advanced-side-card">
+                            <h3>
+                                <span class="status-icon" id="advanced-side-status">📷</span>
+                                Side View
+                            </h3>
+                            <div class="upload-area">
+                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('side', event)">
+                                <p style="font-size: 2rem;">🚶</p>
+                                <p>Click to upload side view</p>
+                            </div>
+                            <img id="advanced-side-preview" class="uploaded-image hidden">
+                            <canvas id="advanced-side-canvas" class="pose-canvas"></canvas>
+                        </div>
+
+                        <!-- Back View -->
+                        <div class="photo-card" id="advanced-back-card">
+                            <h3>
+                                <span class="status-icon" id="advanced-back-status">📷</span>
+                                Back View
+                            </h3>
+                            <div class="upload-area">
+                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('back', event)">
+                                <p style="font-size: 2rem;">🔄</p>
+                                <p>Click to upload back view</p>
+                            </div>
+                            <img id="advanced-back-preview" class="uploaded-image hidden">
+                            <canvas id="advanced-back-canvas" class="pose-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Results -->
+                    <div id="advanced-results" class="results-container hidden">
+                        <div class="score-card">
+                            <div class="score-value" id="advanced-score">--</div>
+                            <div class="score-label">Biomechanical Score</div>
+                        </div>
+
+                        <!-- Biomechanical Metrics -->
+                        <h3 class="mt-xl">📊 Biomechanical Analysis</h3>
+                        <div class="metrics-grid" id="advanced-metrics">
+                            <!-- Metrics will be populated here -->
+                        </div>
+
+                        <!-- Force Distribution -->
+                        <div class="chart-container">
+                            <h3>⚡ Force Distribution Analysis</h3>
+                            <canvas id="force-chart" class="chart-wrapper"></canvas>
+                        </div>
+
+                        <!-- Risk Assessment -->
+                        <div class="info-card">
+                            <h3>⚠️ Risk Assessment</h3>
+                            <div id="risk-assessment">
+                                <!-- Risk scores will be populated here -->
+                            </div>
+                        </div>
+
+                        <!-- Movement Predictions -->
+                        <div class="chart-container">
+                            <h3>📈 Movement Quality Predictions</h3>
+                            <canvas id="movement-chart" class="chart-wrapper"></canvas>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="btn" onclick="generateClinicalReport()">
+                                <span>📄</span>
+                                <span>Generate Clinical Report</span>
+                            </button>
+                            <button class="btn" onclick="exportBiomechanics()">
+                                <span>📊</span>
+                                <span>Export Data</span>
+                            </button>
+                            <button class="btn btn-secondary" onclick="resetAdvancedAnalysis()">
+                                <span>🔄</span>
+                                <span>New Analysis</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading" class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Analyzing posture...</div>
+        </div>
+    </div>
+
+    <!-- JavaScript Modules -->
+    <script type="module" src="assets/js/main.js"></script>
+                    side: null,
+                    back: null
+                }
+            },
+            uploadedViews: {
+                clinical: {
+                    front: false,
+                    side: false,
+                    back: false
+                },
+                advanced: {
+                    front: false,
+                    side: false,
+                    back: false
+                }
+            }
+        };
+
+        // MediaPipe Pose Connections
+        const POSE_CONNECTIONS = [
+            [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5],
+            [5, 6], [6, 8], [9, 10], [11, 12], [11, 13],
+            [13, 15], [15, 17], [15, 19], [15, 21], [17, 19],
+            [12, 14], [14, 16], [16, 18], [16, 20], [16, 22],
+            [18, 20], [11, 23], [12, 24], [23, 24], [23, 25],
+            [24, 26], [25, 27], [26, 28], [27, 29], [28, 30],
+            [29, 31], [30, 32]
+        ];
+
+        // Initialize MediaPipe Pose
+        function initializePose() {
+            if (AppState.pose) return;
+            
+            AppState.pose = new Pose({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+                }
+            });
+            
+            // Set options based on mode
+            const complexity = AppState.currentMode === 'advanced' ? 2 : 1;
+            
+            AppState.pose.setOptions({
+                modelComplexity: complexity,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+        }
+
+        // Mode Selection
+        function selectMode(mode) {
+            AppState.currentMode = mode;
+            
+            // Hide mode selection
+            document.getElementById('mode-selection').style.display = 'none';
+            
+            // Show main content
+            const mainContent = document.getElementById('main-content');
+            mainContent.classList.add('active');
+            
+            // Update navigation
+            const titles = {
+                'quick': 'Quick Assessment',
+                'clinical': 'Clinical Assessment',
+                'advanced': 'Advanced Biomechanics'
+            };
+            document.getElementById('mode-title').textContent = titles[mode];
+            
+            // Show appropriate mode content
+            document.querySelectorAll('.mode-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(`${mode}-mode`).classList.remove('hidden');
+            
+            // Initialize MediaPipe
+            initializePose();
+        }
+
+        // Back to Mode Selection
+        function backToModeSelection() {
+            // Reset state
+            AppState.currentMode = null;
+            closeCamera();
+            
+            // Hide main content
+            document.getElementById('main-content').classList.remove('active');
+            
+            // Show mode selection
+            document.getElementById('mode-selection').style.display = 'flex';
+            
+            // Hide all mode contents
+            document.querySelectorAll('.mode-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+        }
+
+        // Camera Functions
+        async function startCamera(mode) {
+            try {
+                closeCamera();
+                
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                AppState.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                const video = document.getElementById(`${mode}-camera`);
+                video.srcObject = AppState.currentStream;
+                video.classList.remove('hidden');
+                
+                // Show analyze button
+                document.getElementById(`${mode}-analyze-btn`).classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Camera error:', error);
+                alert('Camera access denied. Please use file upload instead.');
+            }
+        }
+
+        function closeCamera() {
+            if (AppState.currentStream) {
+                AppState.currentStream.getTracks().forEach(track => track.stop());
+                AppState.currentStream = null;
+            }
+        }
+
+        // File Upload Handlers
+        function handleFileUpload(mode, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById(`${mode}-preview`);
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                
+                // Hide camera if active
+                const camera = document.getElementById(`${mode}-camera`);
+                if (camera) camera.classList.add('hidden');
+                
+                // Show analyze button
+                document.getElementById(`${mode}-analyze-btn`).classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function uploadClinicalPhoto(view, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById(`clinical-${view}-preview`);
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                
+                // Update status
+                document.getElementById(`clinical-${view}-status`).textContent = '✅';
+                document.getElementById(`clinical-${view}-card`).classList.add('completed');
+                AppState.uploadedViews.clinical[view] = true;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function uploadAdvancedPhoto(view, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            showLoading();
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const preview = document.getElementById(`advanced-${view}-preview`);
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                
+                // Process with MediaPipe
+                const img = new Image();
+                img.onload = async function() {
+                    AppState.pose.onResults((results) => {
+                        processAdvancedResults(results, view);
+                    });
+                    await AppState.pose.send({image: img});
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Posture Analysis
+        async function analyzePosture(mode) {
+            showLoading();
+            
+            let imageSource;
+            const video = document.getElementById(`${mode}-camera`);
+            const preview = document.getElementById(`${mode}-preview`);
+            
+            if (!video.classList.contains('hidden')) {
+                // Capture from video
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                imageSource = canvas;
+            } else {
+                imageSource = preview;
+            }
+            
+            // Process with MediaPipe
+            AppState.pose.onResults((results) => {
+                processQuickResults(results);
+            });
+            await AppState.pose.send({image: imageSource});
+        }
+
+        // Process Results
+        function processQuickResults(results) {
+            hideLoading();
+            
+            if (!results.poseLandmarks) {
+                alert('No pose detected. Please ensure full body is visible.');
+                return;
+            }
+            
+            // Calculate basic metrics
+            const landmarks = results.poseLandmarks;
+            const metrics = calculateBasicMetrics(landmarks);
+            
+            // Calculate score
+            let score = 100;
+            score -= Math.min(metrics.shoulderLevel * 5, 15);
+            score -= Math.min(metrics.headTilt * 3, 10);
+            score -= Math.min(metrics.hipLevel * 5, 15);
+            score = Math.max(0, Math.round(score));
+            
+            // Display results
+            document.getElementById('quick-score').textContent = score;
+            
+            // Display metrics
+            const metricsHTML = `
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Head Alignment</span>
+                        <span class="metric-value">
+                            ${metrics.headTilt.toFixed(1)}°
+                            <span class="severity-indicator severity-${getSeverity(metrics.headTilt, [2, 5, 10])}"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Shoulder Level</span>
+                        <span class="metric-value">
+                            ${metrics.shoulderLevel.toFixed(1)} cm
+                            <span class="severity-indicator severity-${getSeverity(metrics.shoulderLevel, [1, 2, 3])}"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Hip Level</span>
+                        <span class="metric-value">
+                            ${metrics.hipLevel.toFixed(1)} cm
+                            <span class="severity-indicator severity-${getSeverity(metrics.hipLevel, [1, 2, 3])}"></span>
+                        </span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('quick-metrics').innerHTML = metricsHTML;
+            
+            // Generate recommendations
+            const recommendations = generateQuickRecommendations(metrics);
+            document.getElementById('quick-recommendations').innerHTML = recommendations;
+            
+            // Show results
+            document.getElementById('quick-results').classList.remove('hidden');
+            
+            // Draw skeleton on canvas
+            const canvas = document.getElementById('quick-canvas');
+            const ctx = canvas.getContext('2d');
+            const img = document.getElementById('quick-preview');
+            
+            canvas.width = img.width;
+            canvas.height = img.height;
+            canvas.style.position = 'absolute';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            
+            drawConnectors(ctx, landmarks, POSE_CONNECTIONS, {color: '#667eea', lineWidth: 2});
+            drawLandmarks(ctx, landmarks, {color: '#764ba2', radius: 3});
+        }
+
+        function processAdvancedResults(results, view) {
+            hideLoading();
+            
+            if (!results.poseLandmarks) {
+                alert(`No pose detected in ${view} view. Please ensure full body is visible.`);
+                return;
+            }
+            
+            // Store landmarks
+            AppState.analysisData.advanced[view] = results.poseLandmarks;
+            
+            // Update status
+            document.getElementById(`advanced-${view}-status`).textContent = '✅';
+            document.getElementById(`advanced-${view}-card`).classList.add('completed');
+            AppState.uploadedViews.advanced[view] = true;
+            
+            // Draw skeleton
+            const canvas = document.getElementById(`advanced-${view}-canvas`);
+            const ctx = canvas.getContext('2d');
+            const img = document.getElementById(`advanced-${view}-preview`);
+            
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#667eea', lineWidth: 2});
+            drawLandmarks(ctx, results.poseLandmarks, {color: '#764ba2', radius: 3});
+            
+            // Check if all views complete
+            if (AppState.uploadedViews.advanced.front && 
+                AppState.uploadedViews.advanced.side && 
+                AppState.uploadedViews.advanced.back) {
+                performAdvancedAnalysis();
+            }
+        }
+
+        // Calculations
+        function calculateBasicMetrics(landmarks) {
+            const leftShoulder = landmarks[11];
+            const rightShoulder = landmarks[12];
+            const leftEye = landmarks[2];
+            const rightEye = landmarks[5];
+            const leftHip = landmarks[23];
+            const rightHip = landmarks[24];
+            
+            return {
+                headTilt: Math.abs(Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * 180 / Math.PI),
+                shoulderLevel: Math.abs(leftShoulder.y - rightShoulder.y) * 100,
+                hipLevel: Math.abs(leftHip.y - rightHip.y) * 100
+            };
+        }
+
+        function performAdvancedAnalysis() {
+            // Calculate comprehensive metrics
+            const frontData = analyzeView(AppState.analysisData.advanced.front, 'front');
+            const sideData = analyzeView(AppState.analysisData.advanced.side, 'side');
+            const backData = analyzeView(AppState.analysisData.advanced.back, 'back');
+            
+            // Calculate overall score
+            let score = 100;
+            // Deduct points based on deviations
+            score -= Math.min(frontData.totalDeviation, 25);
+            score -= Math.min(sideData.totalDeviation, 25);
+            score -= Math.min(backData.totalDeviation, 25);
+            score = Math.max(0, Math.round(score));
+            
+            // Display score
+            document.getElementById('advanced-score').textContent = score;
+            
+            // Display metrics
+            displayAdvancedMetrics(frontData, sideData, backData);
+            
+            // Create charts
+            createForceChart(frontData);
+            createMovementChart(frontData, sideData);
+            
+            // Risk assessment
+            displayRiskAssessment(frontData, sideData, backData);
+            
+            // Show results
+            document.getElementById('advanced-results').classList.remove('hidden');
+        }
+
+        function analyzeView(landmarks, view) {
+            const data = {
+                view: view,
+                totalDeviation: 0
+            };
+            
+            if (view === 'front') {
+                // Q-Angle calculation
+                const hip = landmarks[23];
+                const knee = landmarks[25];
+                const ankle = landmarks[27];
+                data.qAngle = calculateAngle(hip, knee, ankle);
+                
+                // Shoulder symmetry
+                const leftShoulder = landmarks[11];
+                const rightShoulder = landmarks[12];
+                data.shoulderAsymmetry = Math.abs(leftShoulder.y - rightShoulder.y) * 100;
+                
+                // Hip symmetry
+                const leftHip = landmarks[23];
+                const rightHip = landmarks[24];
+                data.hipAsymmetry = Math.abs(leftHip.y - rightHip.y) * 100;
+                
+                // Weight distribution estimate
+                const com = calculateCenterOfMass(landmarks);
+                const midFoot = (landmarks[31].x + landmarks[32].x) / 2;
+                data.weightDistribution = {
+                    left: 50 - (com.x - midFoot) * 100,
+                    right: 50 + (com.x - midFoot) * 100
+                };
+                
+                data.totalDeviation = data.shoulderAsymmetry * 2 + data.hipAsymmetry * 2 + 
+                                     Math.abs(data.qAngle - 15);
+            }
+            
+            else if (view === 'side') {
+                // Forward head posture
+                const ear = landmarks[7] || landmarks[8];
+                const shoulder = landmarks[11] || landmarks[12];
+                data.forwardHead = (ear.x - shoulder.x) * 100;
+                
+                // Pelvic tilt estimation
+                const hip = landmarks[23] || landmarks[24];
+                const knee = landmarks[25] || landmarks[26];
+                data.pelvicAngle = Math.atan2(knee.y - hip.y, knee.x - hip.x) * 180 / Math.PI;
+                
+                // Kyphosis estimation
+                const upperBack = landmarks[11];
+                const midBack = interpolatePoint(landmarks[11], landmarks[23], 0.5);
+                const lowerBack = landmarks[23];
+                data.kyphosisAngle = calculateAngle(upperBack, midBack, lowerBack);
+                
+                data.totalDeviation = Math.abs(data.forwardHead) * 3 + 
+                                     Math.abs(data.pelvicAngle - 10) + 
+                                     Math.abs(data.kyphosisAngle - 160) * 0.5;
+            }
+            
+            else if (view === 'back') {
+                // Scoliosis detection
+                const spine = extractSpinePoints(landmarks);
+                data.spinalDeviation = calculateMaxDeviation(spine) * 100;
+                
+                // Scapular symmetry
+                const leftShoulder = landmarks[11];
+                const rightShoulder = landmarks[12];
+                const leftElbow = landmarks[13];
+                const rightElbow = landmarks[14];
+                data.scapularAsymmetry = Math.abs(
+                    (leftElbow.x - leftShoulder.x) - (rightElbow.x - rightShoulder.x)
+                ) * 100;
+                
+                data.totalDeviation = data.spinalDeviation * 2 + data.scapularAsymmetry * 3;
+            }
+            
+            return data;
+        }
+
+        // Utility Functions
+        function calculateAngle(p1, p2, p3) {
+            const angle1 = Math.atan2(p1.y - p2.y, p1.x - p2.x);
+            const angle2 = Math.atan2(p3.y - p2.y, p3.x - p2.x);
+            let angle = Math.abs(angle2 - angle1) * 180 / Math.PI;
+            if (angle > 180) angle = 360 - angle;
+            return angle;
+        }
+
+        function calculateCenterOfMass(landmarks) {
+            const segments = {
+                head: { weight: 0.08, point: landmarks[0] },
+                trunk: { weight: 0.46, point: interpolatePoint(landmarks[11], landmarks[23], 0.5) },
+                leftArm: { weight: 0.05, point: landmarks[15] },
+                rightArm: { weight: 0.05, point: landmarks[16] },
+                leftLeg: { weight: 0.18, point: landmarks[27] },
+                rightLeg: { weight: 0.18, point: landmarks[28] }
+            };
+            
+            let comX = 0, comY = 0;
+            Object.values(segments).forEach(segment => {
+                comX += segment.point.x * segment.weight;
+                comY += segment.point.y * segment.weight;
+            });
+            
+            return { x: comX, y: comY };
+        }
+
+        function interpolatePoint(p1, p2, ratio) {
+            return {
+                x: p1.x + (p2.x - p1.x) * ratio,
+                y: p1.y + (p2.y - p1.y) * ratio
+            };
+        }
+
+        function extractSpinePoints(landmarks) {
+            return [
+                landmarks[0],
+                interpolatePoint(landmarks[0], landmarks[11], 0.5),
+                landmarks[11],
+                interpolatePoint(landmarks[11], landmarks[23], 0.5),
+                landmarks[23],
+                landmarks[24]
+            ];
+        }
+
+        function calculateMaxDeviation(points) {
+            if (points.length < 3) return 0;
+            
+            let maxDev = 0;
+            for (let i = 1; i < points.length - 1; i++) {
+                const expectedX = (points[0].x + points[points.length - 1].x) / 2;
+                const deviation = Math.abs(points[i].x - expectedX);
+                maxDev = Math.max(maxDev, deviation);
+            }
+            return maxDev;
+        }
+
+        function getSeverity(value, thresholds) {
+            if (value < thresholds[0]) return 'optimal';
+            if (value < thresholds[1]) return 'mild';
+            if (value < thresholds[2]) return 'moderate';
+            return 'severe';
+        }
+
+        // Display Functions
+        function displayAdvancedMetrics(frontData, sideData, backData) {
+            const metricsHTML = `
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Q-Angle</span>
+                        <span class="metric-value">
+                            ${frontData.qAngle.toFixed(1)}°
+                            <span class="severity-indicator severity-${getSeverity(Math.abs(frontData.qAngle - 15), [3, 5, 8])}"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Forward Head</span>
+                        <span class="metric-value">
+                            ${sideData.forwardHead.toFixed(1)} cm
+                            <span class="severity-indicator severity-${getSeverity(Math.abs(sideData.forwardHead), [2, 4, 6])}"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Shoulder Asymmetry</span>
+                        <span class="metric-value">
+                            ${frontData.shoulderAsymmetry.toFixed(1)} cm
+                            <span class="severity-indicator severity-${getSeverity(frontData.shoulderAsymmetry, [1, 2, 3])}"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Spinal Deviation</span>
+                        <span class="metric-value">
+                            ${backData.spinalDeviation.toFixed(1)} cm
+                            <span class="severity-indicator severity-${getSeverity(backData.spinalDeviation, [2, 3, 4])}"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Pelvic Angle</span>
+                        <span class="metric-value">
+                            ${sideData.pelvicAngle.toFixed(1)}°
+                            <span class="severity-indicator severity-${getSeverity(Math.abs(sideData.pelvicAngle - 10), [5, 10, 15])}"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Kyphosis Angle</span>
+                        <span class="metric-value">
+                            ${sideData.kyphosisAngle.toFixed(1)}°
+                            <span class="severity-indicator severity-${getSeverity(Math.abs(sideData.kyphosisAngle - 160), [10, 20, 30])}"></span>
+                        </span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('advanced-metrics').innerHTML = metricsHTML;
+        }
+
+        function createForceChart(frontData) {
+            const ctx = document.getElementById('force-chart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Left Foot', 'Right Foot'],
+                    datasets: [{
+                        label: 'Weight Distribution (%)',
+                        data: [frontData.weightDistribution.left, frontData.weightDistribution.right],
+                        backgroundColor: ['#667eea', '#764ba2']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function createMovementChart(frontData, sideData) {
+            const ctx = document.getElementById('movement-chart').getContext('2d');
+            
+            // Predict movement quality based on postural data
+            const predictions = {
+                'Squat': 100 - Math.min(frontData.shoulderAsymmetry * 5 + Math.abs(frontData.qAngle - 15) * 2, 40),
+                'Lunge': 100 - Math.min(frontData.hipAsymmetry * 5 + Math.abs(frontData.qAngle - 15) * 3, 40),
+                'Overhead': 100 - Math.min(Math.abs(sideData.forwardHead) * 3 + frontData.shoulderAsymmetry * 4, 40),
+                'Balance': 100 - Math.min(frontData.totalDeviation * 0.5, 30),
+                'Rotation': 100 - Math.min(backData.spinalDeviation * 3, 30),
+                'Flexion': 100 - Math.min(Math.abs(sideData.kyphosisAngle - 160) * 1.5, 30)
+            };
+            
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: Object.keys(predictions),
+                    datasets: [{
+                        label: 'Movement Quality Prediction',
+                        data: Object.values(predictions),
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                        borderColor: '#667eea',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function displayRiskAssessment(frontData, sideData, backData) {
+            // Calculate risk scores
+            const risks = {
+                'Low Back Pain': Math.min(
+                    Math.abs(sideData.pelvicAngle - 10) * 3 + 
+                    Math.abs(sideData.forwardHead) * 2, 
+                    100
+                ),
+                'Neck Pain': Math.min(
+                    Math.abs(sideData.forwardHead) * 5 + 
+                    frontData.shoulderAsymmetry * 3, 
+                    100
+                ),
+                'Knee Pain': Math.min(
+                    Math.abs(frontData.qAngle - 15) * 4 + 
+                    frontData.hipAsymmetry * 2, 
+                    100
+                ),
+                'Shoulder Impingement': Math.min(
+                    frontData.shoulderAsymmetry * 4 + 
+                    Math.abs(sideData.forwardHead) * 2, 
+                    100
+                )
+            };
+            
+            let html = '<div class="metrics-grid">';
+            Object.entries(risks).forEach(([condition, risk]) => {
+                const severity = risk < 30 ? 'optimal' : risk < 60 ? 'mild' : 'moderate';
+                html += `
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-title">${condition}</span>
+                            <span class="metric-value">
+                                ${risk.toFixed(0)}%
+                                <span class="severity-indicator severity-${severity}"></span>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            document.getElementById('risk-assessment').innerHTML = html;
+        }
+
+        function generateQuickRecommendations(metrics) {
+            let recommendations = '<ul style="list-style: none; padding: 0;">';
+            
+            if (metrics.headTilt > 5) {
+                recommendations += '<li style="padding: 8px 0;">🎯 Practice neck stretches to improve head alignment</li>';
+            }
+            
+            if (metrics.shoulderLevel > 2) {
+                recommendations += '<li style="padding: 8px 0;">💪 Strengthen weaker shoulder with targeted exercises</li>';
+            }
+            
+            if (metrics.hipLevel > 2) {
+                recommendations += '<li style="padding: 8px 0;">🦵 Work on hip stability and core strengthening</li>';
+            }
+            
+            recommendations += '<li style="padding: 8px 0;">🧘 Daily posture awareness exercises recommended</li>';
+            recommendations += '</ul>';
+            
+            return recommendations;
+        }
+
+        // Drawing Functions
+        function drawConnectors(ctx, landmarks, connections, style) {
+            ctx.strokeStyle = style.color;
+            ctx.lineWidth = style.lineWidth;
+            
+            connections.forEach(([start, end]) => {
+                const startPoint = landmarks[start];
+                const endPoint = landmarks[end];
+                
+                if (startPoint && endPoint) {
+                    ctx.beginPath();
+                    ctx.moveTo(startPoint.x * ctx.canvas.width, startPoint.y * ctx.canvas.height);
+                    ctx.lineTo(endPoint.x * ctx.canvas.width, endPoint.y * ctx.canvas.height);
+                    ctx.stroke();
+                }
+            });
+        }
+
+        function drawLandmarks(ctx, landmarks, style) {
+            ctx.fillStyle = style.color;
+            
+            landmarks.forEach(landmark => {
+                if (landmark) {
+                    ctx.beginPath();
+                    ctx.arc(
+                        landmark.x * ctx.canvas.width,
+                        landmark.y * ctx.canvas.height,
+                        style.radius,
+                        0,
+                        2 * Math.PI
+                    );
+                    ctx.fill();
+                }
+            });
+        }
+
+        // UI Helper Functions
+        function showTab(mode, tabName) {
+            // Hide all tabs
+            document.querySelectorAll(`#${mode}-mode .tab-content`).forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active from all buttons
+            document.querySelectorAll(`#${mode}-mode .tab-btn`).forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(`${mode}-${tabName}`).classList.add('active');
+            
+            // Activate button
+            const activeBtn = Array.from(document.querySelectorAll(`#${mode}-mode .tab-btn`))
+                .find(btn => btn.textContent.toLowerCase().includes(tabName.replace('-', ' ')));
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        function showLoading() {
+            document.getElementById('loading').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('active');
+        }
+
+        // Action Functions
+        function saveQuickResults() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                score: document.getElementById('quick-score').textContent,
+                mode: 'quick'
+            };
+            console.log('Saving results:', data);
+            alert('Results saved! (In production, this would save to database)');
+        }
+
+        function resetQuickAnalysis() {
+            // Clear results
+            document.getElementById('quick-results').classList.add('hidden');
+            document.getElementById('quick-preview').classList.add('hidden');
+            document.getElementById('quick-camera').classList.add('hidden');
+            document.getElementById('quick-analyze-btn').classList.add('hidden');
+            
+            // Clear canvas
+            const canvas = document.getElementById('quick-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Close camera
+            closeCamera();
+        }
+
+        function resetAdvancedAnalysis() {
+            // Reset state
+            AppState.analysisData.advanced = {
+                front: null,
+                side: null,
+                back: null
+            };
+            AppState.uploadedViews.advanced = {
+                front: false,
+                side: false,
+                back: false
+            };
+            
+            // Reset UI
+            ['front', 'side', 'back'].forEach(view => {
+                document.getElementById(`advanced-${view}-preview`).classList.add('hidden');
+                document.getElementById(`advanced-${view}-status`).textContent = '📷';
+                document.getElementById(`advanced-${view}-card`).classList.remove('completed');
+                
+                // Clear canvas
+                const canvas = document.getElementById(`advanced-${view}-canvas`);
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            });
+            
+            // Hide results
+            document.getElementById('advanced-results').classList.add('hidden');
+        }
+
+        function generateClinicalReport() {
+            showLoading();
+            setTimeout(() => {
+                hideLoading();
+                alert('Clinical report generated! This would create a detailed PDF with all measurements, risk assessments, and exercise prescriptions.');
+            }, 2000);
+        }
+
+        function exportBiomechanics() {
+            const exportData = {
+                timestamp: new Date().toISOString(),
+                mode: 'advanced',
+                analysisData: AppState.analysisData.advanced
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'posture-analysis-' + Date.now() + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set today's date for clinical assessment
+            const today = new Date().toISOString().split('T')[0];
+            const assessmentDate = document.getElementById('assessment-date');
+            if (assessmentDate) assessmentDate.value = today;
+            
+            // Add touch event handling for mobile
+            let touchStartY = 0;
+            document.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+            }, { passive: true });
+            
+            document.addEventListener('touchmove', (e) => {
+                const touchY = e.touches[0].clientY;
+                const scrollTop = window.scrollY;
+                
+                // Prevent overscroll on iOS
+                if (scrollTop === 0 && touchY > touchStartY) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        });
+
+        // Service Worker Registration (for PWA support)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {
+                console.log('Service Worker registration failed');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "posture-ai-app",
+  "version": "1.0.0",
+  "description": "AI-powered posture analysis application with clinical-grade biomechanical assessment",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "build": "echo 'No build required for static site'",
+    "preview": "python3 -m http.server 8000"
+  },
+  "keywords": [
+    "posture",
+    "analysis",
+    "biomechanics",
+    "mediapipe",
+    "ai",
+    "health",
+    "assessment"
+  ],
+  "author": "Two Tonys Treatment Clinic",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/posture-ai-app.git"
+  },
+  "homepage": "https://posture.rajanmaher.com",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

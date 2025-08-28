@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="AI-powered posture analysis with clinical-grade biomechanical assessment">
+    
+    <title>Posture AI - Advanced Biomechanical Analysis</title>
+    
+    <!-- External Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- External Stylesheets -->
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Header -->
+        <header class="app-header">
+            <h1>🦴 Posture AI Analysis</h1>
+            <p>Two Tonys Treatment Clinic - Advanced Biomechanical Assessment</p>
+        </header>
+
+        <!-- Mode Selection Screen -->
+        <div id="mode-selection" class="mode-selection">
+            <div class="text-center">
+                <h2>Choose Your Assessment Mode</h2>
+                <p>Select the type of analysis that best fits your needs</p>
+            </div>
+            
+            <div class="mode-grid">
+                <!-- Quick Assessment Mode -->
+                <div class="mode-card" onclick="selectMode('quick')">
+                    <span class="mode-icon">📱</span>
+                    <h3 class="mode-title">Quick Assessment</h3>
+                    <p class="mode-description">
+                        Fast, mobile-optimized posture check with instant results
+                    </p>
+                    <ul class="mode-features">
+                        <li>Live camera capture</li>
+                        <li>Basic posture metrics</li>
+                        <li>Instant recommendations</li>
+                        <li>2-minute analysis</li>
+                    </ul>
+                </div>
+
+                <!-- Clinical Assessment Mode -->
+                <div class="mode-card" onclick="selectMode('clinical')">
+                    <span class="mode-icon">🏥</span>
+                    <h3 class="mode-title">Clinical Assessment</h3>
+                    <p class="mode-description">
+                        Complete clinical workflow with detailed documentation
+                    </p>
+                    <ul class="mode-features">
+                        <li>Client management</li>
+                        <li>Photo annotations</li>
+                        <li>Movement prescription</li>
+                        <li>PDF report generation</li>
+                    </ul>
+                </div>
+
+                <!-- Advanced Biomechanics Mode -->
+                <div class="mode-card" onclick="selectMode('advanced')">
+                    <span class="mode-icon">🔬</span>
+                    <h3 class="mode-title">Advanced Biomechanics</h3>
+                    <p class="mode-description">
+                        Research-grade analysis with comprehensive metrics
+                    </p>
+                    <ul class="mode-features">
+                        <li>33-point detection</li>
+                        <li>Force distribution</li>
+                        <li>Risk assessment</li>
+                        <li>Clinical predictions</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area (Hidden Initially) -->
+        <div id="main-content" class="main-content">
+            <!-- Navigation Bar -->
+            <nav class="nav-bar">
+                <button class="nav-back" onclick="backToModeSelection()">
+                    <span>←</span>
+                    <span>Back</span>
+                </button>
+                <span class="nav-title" id="mode-title">Quick Assessment</span>
+                <div></div>
+            </nav>
+
+            <!-- Quick Assessment Mode -->
+            <div id="quick-mode" class="mode-content hidden">
+                <!-- Photo Capture Section -->
+                <div class="tab-content active">
+                    <h2>Quick Posture Check</h2>
+                    <p>Take or upload a photo for instant analysis</p>
+                    
+                    <div class="camera-container mt-lg">
+                        <video id="quick-camera" class="camera-view hidden" autoplay playsinline></video>
+                        <canvas id="quick-canvas" class="pose-canvas"></canvas>
+                        <img id="quick-preview" class="uploaded-image hidden" />
+                    </div>
+                    
+                    <div class="action-buttons mt-lg">
+                        <button class="btn btn-large" onclick="startCamera('quick')">
+                            <span>📸</span>
+                            <span>Use Camera</span>
+                        </button>
+                        <label class="btn btn-large">
+                            <span>📁</span>
+                            <span>Upload Photo</span>
+                            <input type="file" accept="image/*" onchange="handleFileUpload('quick', event)" style="display: none;">
+                        </label>
+                    </div>
+                    
+                    <button id="quick-analyze-btn" class="btn btn-success btn-large btn-block mt-lg hidden" onclick="analyzePosture('quick')">
+                        <span>🔬</span>
+                        <span>Analyze Posture</span>
+                    </button>
+                    
+                    <!-- Quick Results -->
+                    <div id="quick-results" class="results-container hidden">
+                        <div class="score-card">
+                            <div class="score-value" id="quick-score">--</div>
+                            <div class="score-label">Posture Score</div>
+                        </div>
+                        
+                        <div class="metrics-grid" id="quick-metrics">
+                            <!-- Metrics will be populated here -->
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3>🎯 Quick Recommendations</h3>
+                            <div id="quick-recommendations">
+                                <!-- Recommendations will be populated here -->
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn" onclick="saveQuickResults()">
+                                <span>💾</span>
+                                <span>Save Results</span>
+                            </button>
+                            <button class="btn btn-secondary" onclick="resetQuickAnalysis()">
+                                <span>🔄</span>
+                                <span>New Analysis</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clinical Assessment Mode -->
+            <div id="clinical-mode" class="mode-content hidden">
+                <!-- Tab Navigation -->
+                <div class="tab-nav">
+                    <button class="tab-btn active" onclick="showTab('clinical', 'client-info')">Client Info</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'assessment')">Assessment</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'north-star')">North Star</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'release')">Release</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'reset')">Reset</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'rebuild')">Rebuild</button>
+                    <button class="tab-btn" onclick="showTab('clinical', 'summary')">Summary</button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="tab-contents">
+                    <!-- Client Info Tab -->
+                    <div id="clinical-client-info" class="tab-content active">
+                        <h2>Client Information</h2>
+                        <form id="client-form">
+                            <div class="form-group">
+                                <label class="form-label">Client Name</label>
+                                <input type="text" class="form-input" id="client-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Assessment Date</label>
+                                <input type="date" class="form-input" id="assessment-date" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Assessed By</label>
+                                <input type="text" class="form-input" id="assessor-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Sessions per Week</label>
+                                <select class="form-select" id="sessions-per-week">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3" selected>3</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-large" onclick="showTab('clinical', 'assessment')">
+                                Next: Assessment
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Assessment Tab -->
+                    <div id="clinical-assessment" class="tab-content">
+                        <h2>Posture Assessment</h2>
+                        <p>Upload photos and annotate findings for each view</p>
+                        
+                        <div class="photo-grid">
+                            <!-- Front View -->
+                            <div class="photo-card" id="clinical-front-card">
+                                <h3>
+                                    <span class="status-icon" id="clinical-front-status">📷</span>
+                                    Front View
+                                </h3>
+                                <div class="upload-area">
+                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('front', event)">
+                                    <p style="font-size: 2rem;">👤</p>
+                                    <p>Click to upload front view</p>
+                                </div>
+                                <img id="clinical-front-preview" class="uploaded-image hidden">
+                                <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
+                            </div>
+
+                            <!-- Side View -->
+                            <div class="photo-card" id="clinical-side-card">
+                                <h3>
+                                    <span class="status-icon" id="clinical-side-status">📷</span>
+                                    Side View
+                                </h3>
+                                <div class="upload-area">
+                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('side', event)">
+                                    <p style="font-size: 2rem;">🚶</p>
+                                    <p>Click to upload side view</p>
+                                </div>
+                                <img id="clinical-side-preview" class="uploaded-image hidden">
+                                <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
+                            </div>
+
+                            <!-- Back View -->
+                            <div class="photo-card" id="clinical-back-card">
+                                <h3>
+                                    <span class="status-icon" id="clinical-back-status">📷</span>
+                                    Back View
+                                </h3>
+                                <div class="upload-area">
+                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('back', event)">
+                                    <p style="font-size: 2rem;">🔄</p>
+                                    <p>Click to upload back view</p>
+                                </div>
+                                <img id="clinical-back-preview" class="uploaded-image hidden">
+                                <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary" onclick="showTab('clinical', 'client-info')">Previous</button>
+                            <button class="btn" onclick="showTab('clinical', 'north-star')">Next: North Star</button>
+                        </div>
+                    </div>
+
+                    <!-- Additional Clinical Tabs -->
+                    <div id="clinical-north-star" class="tab-content">
+                        <h2>North Star Posture</h2>
+                        <p>Define the ideal posture goals</p>
+                        <!-- Content here -->
+                    </div>
+
+                    <div id="clinical-release" class="tab-content">
+                        <h2>Release Movements</h2>
+                        <p>Prescribe release exercises</p>
+                        <!-- Content here -->
+                    </div>
+
+                    <div id="clinical-reset" class="tab-content">
+                        <h2>Reset Movements</h2>
+                        <p>Prescribe reset exercises</p>
+                        <!-- Content here -->
+                    </div>
+
+                    <div id="clinical-rebuild" class="tab-content">
+                        <h2>Rebuild Program</h2>
+                        <p>Design strengthening program</p>
+                        <!-- Content here -->
+                    </div>
+
+                    <div id="clinical-summary" class="tab-content">
+                        <h2>Assessment Summary</h2>
+                        <p>Review and generate report</p>
+                        <!-- Content here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Biomechanics Mode -->
+            <div id="advanced-mode" class="mode-content hidden">
+                <div class="tab-content active">
+                    <h2>Advanced Biomechanical Analysis</h2>
+                    <p>Upload front, side, and back view photos for comprehensive analysis</p>
+                    
+                    <div class="photo-grid">
+                        <!-- Front View -->
+                        <div class="photo-card" id="advanced-front-card">
+                            <h3>
+                                <span class="status-icon" id="advanced-front-status">📷</span>
+                                Front View
+                            </h3>
+                            <div class="upload-area">
+                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('front', event)">
+                                <p style="font-size: 2rem;">👤</p>
+                                <p>Click to upload front view</p>
+                            </div>
+                            <img id="advanced-front-preview" class="uploaded-image hidden">
+                            <canvas id="advanced-front-canvas" class="pose-canvas"></canvas>
+                        </div>
+
+                        <!-- Side View -->
+                        <div class="photo-card" id="advanced-side-card">
+                            <h3>
+                                <span class="status-icon" id="advanced-side-status">📷</span>
+                                Side View
+                            </h3>
+                            <div class="upload-area">
+                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('side', event)">
+                                <p style="font-size: 2rem;">🚶</p>
+                                <p>Click to upload side view</p>
+                            </div>
+                            <img id="advanced-side-preview" class="uploaded-image hidden">
+                            <canvas id="advanced-side-canvas" class="pose-canvas"></canvas>
+                        </div>
+
+                        <!-- Back View -->
+                        <div class="photo-card" id="advanced-back-card">
+                            <h3>
+                                <span class="status-icon" id="advanced-back-status">📷</span>
+                                Back View
+                            </h3>
+                            <div class="upload-area">
+                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('back', event)">
+                                <p style="font-size: 2rem;">🔄</p>
+                                <p>Click to upload back view</p>
+                            </div>
+                            <img id="advanced-back-preview" class="uploaded-image hidden">
+                            <canvas id="advanced-back-canvas" class="pose-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Results -->
+                    <div id="advanced-results" class="results-container hidden">
+                        <div class="score-card">
+                            <div class="score-value" id="advanced-score">--</div>
+                            <div class="score-label">Biomechanical Score</div>
+                        </div>
+
+                        <!-- Biomechanical Metrics -->
+                        <h3 class="mt-xl">📊 Biomechanical Analysis</h3>
+                        <div class="metrics-grid" id="advanced-metrics">
+                            <!-- Metrics will be populated here -->
+                        </div>
+
+                        <!-- Force Distribution -->
+                        <div class="chart-container">
+                            <h3>⚡ Force Distribution Analysis</h3>
+                            <canvas id="force-chart" class="chart-wrapper"></canvas>
+                        </div>
+
+                        <!-- Risk Assessment -->
+                        <div class="info-card">
+                            <h3>⚠️ Risk Assessment</h3>
+                            <div id="risk-assessment">
+                                <!-- Risk scores will be populated here -->
+                            </div>
+                        </div>
+
+                        <!-- Movement Predictions -->
+                        <div class="chart-container">
+                            <h3>📈 Movement Quality Predictions</h3>
+                            <canvas id="movement-chart" class="chart-wrapper"></canvas>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="btn" onclick="generateClinicalReport()">
+                                <span>📄</span>
+                                <span>Generate Clinical Report</span>
+                            </button>
+                            <button class="btn" onclick="exportBiomechanics()">
+                                <span>📊</span>
+                                <span>Export Data</span>
+                            </button>
+                            <button class="btn btn-secondary" onclick="resetAdvancedAnalysis()">
+                                <span>🔄</span>
+                                <span>New Analysis</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading" class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Analyzing posture...</div>
+        </div>
+    </div>
+
+    <!-- JavaScript Modules -->
+    <script type="module" src="assets/js/main.js"></script>
+</body>
+</html>
