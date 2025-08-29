@@ -106,11 +106,11 @@
     --color-bg-tertiary: #FFFFFF;       /* Pure white for inputs */
     --color-bg-inverse: #57564F;        /* Dark backgrounds */
     
-    /* Semi-transparent variants for glassmorphism */
-    --color-bg-primary-alpha: rgba(248, 243, 206, 0.95);
-    --color-bg-secondary-alpha: rgba(221, 218, 208, 0.7); /* More translucent */
-    --color-bg-tertiary-alpha: rgba(255, 255, 255, 0.9);
-    --color-bg-card-glass: rgba(248, 243, 206, 0.6); /* Much more translucent for cards */
+    /* Semi-transparent variants for glassmorphism - all 20% opacity */
+    --color-bg-primary-alpha: rgba(248, 243, 206, 0.2);
+    --color-bg-secondary-alpha: rgba(221, 218, 208, 0.2);
+    --color-bg-tertiary-alpha: rgba(255, 255, 255, 0.2);
+    --color-bg-card-glass: rgba(248, 243, 206, 0.2); /* 20% opacity for all cards */
     
     /* Interactive states */
     --color-primary: #57564F;           /* Primary actions */
@@ -195,11 +195,11 @@
         --color-bg-tertiary: light-dark(#FFFFFF, #57564F);
         --color-bg-inverse: light-dark(#57564F, #F8F3CE);
         
-        /* Semi-transparent variants */
-        --color-bg-primary-alpha: light-dark(rgba(248, 243, 206, 0.95), rgba(42, 42, 39, 0.95));
-        --color-bg-secondary-alpha: light-dark(rgba(221, 218, 208, 0.7), rgba(58, 58, 54, 0.7));
-        --color-bg-tertiary-alpha: light-dark(rgba(255, 255, 255, 0.9), rgba(87, 86, 79, 0.9));
-        --color-bg-card-glass: light-dark(rgba(248, 243, 206, 0.6), rgba(58, 58, 54, 0.6));
+        /* Semi-transparent variants - all 20% opacity */
+        --color-bg-primary-alpha: light-dark(rgba(248, 243, 206, 0.2), rgba(42, 42, 39, 0.2));
+        --color-bg-secondary-alpha: light-dark(rgba(221, 218, 208, 0.2), rgba(58, 58, 54, 0.2));
+        --color-bg-tertiary-alpha: light-dark(rgba(255, 255, 255, 0.2), rgba(87, 86, 79, 0.2));
+        --color-bg-card-glass: light-dark(rgba(248, 243, 206, 0.2), rgba(58, 58, 54, 0.2));
         
         /* Interactive states */
         --color-primary: light-dark(#57564F, #F8F3CE);
@@ -353,7 +353,7 @@ a:hover {
     min-height: 100vh;
     min-height: 100dvh; /* Dynamic viewport height */
     position: relative;
-    background-color: rgba(248, 243, 206, 0.05); /* 95% translucent yellow background */
+    /* No background color - let image be the only background */
     transition: var(--transition-theme);
 }
 
@@ -399,7 +399,7 @@ a:hover {
     padding-inline: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
     
     /* Glassmorphism effect */
-    background: rgba(248, 243, 206, 0.95); /* 95% translucent for consistency */
+    background: rgba(248, 243, 206, 0.2); /* 20% opacity */
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     
@@ -433,7 +433,7 @@ a:hover {
 /* Dark mode glassmorphism */
 @media (prefers-color-scheme: dark) {
     .app-header {
-        background: rgba(42, 42, 39, 0.95); /* Keep header more opaque for readability */
+        background: rgba(42, 42, 39, 0.2); /* 20% opacity */
         border-bottom: 1px solid rgba(248, 243, 206, 0.15);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
     }
@@ -441,12 +441,12 @@ a:hover {
 
 /* Manual theme overrides */
 html[data-theme="light"] .app-header {
-    background: rgba(248, 243, 206, 0.85);
+    background: rgba(248, 243, 206, 0.2); /* 20% opacity */
     border-bottom: 1px solid rgba(87, 86, 79, 0.15);
 }
 
 html[data-theme="dark"] .app-header {
-    background: rgba(42, 42, 39, 0.95); /* Keep header more opaque for readability */
+    background: rgba(42, 42, 39, 0.2); /* 20% opacity */
     border-bottom: 1px solid rgba(248, 243, 206, 0.15);
 }
 
@@ -975,9 +975,11 @@ body.no-background .background-toggle:hover {
    =========================== */
 .btn {
     padding: max(0.625rem, 2.5vh) clamp(1rem, 5vw, 2rem);
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
+    background: rgba(87, 86, 79, 0.2); /* 20% opacity */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--color-text-primary);
+    border: 1px solid rgba(87, 86, 79, 0.3);
     border-radius: var(--border-radius);
     font-size: var(--font-size-base);
     font-weight: 600;
@@ -1113,11 +1115,14 @@ body.no-background .background-toggle:hover {
 }
 
 .score-card {
-    background: var(--primary-gradient);
-    color: white;
+    background: rgba(87, 86, 79, 0.2); /* 20% opacity */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--color-text-primary);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-xl);
     text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: var(--spacing-xl);
     box-shadow: var(--shadow-lg);
 }
@@ -1322,11 +1327,14 @@ body.no-background .background-toggle:hover {
    Info Cards
    =========================== */
 .info-card {
-    background: var(--light-bg);
+    background: rgba(248, 243, 206, 0.2); /* 20% opacity */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border-radius: var(--border-radius);
     padding: var(--spacing-lg);
     margin-bottom: var(--spacing-md);
     max-width: 800px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     margin-inline: auto;
     text-align: center;
 }

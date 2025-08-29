@@ -9,6 +9,7 @@ claude mcp add -s user filesystem npx -- -y @modelcontextprotocol/server-filesys
 claude mcp add -s user brave-search npx -- -y @modelcontextprotocol/server-brave-search
 claude mcp add -s user github --env GITHUB_PERSONAL_ACCESS_TOKEN='${GITHUB_PERSONAL_ACCESS_TOKEN}' -- npx -y @modelcontextprotocol/server-github
 claude mcp add -s user browsermcp -- npx @browsermcp/mcp@latest
+claude mcp add -s user lucide-icons -- npx lucide-icons-mcp --stdio
 
 # Add project-specific servers
 echo "Adding project-specific MCP servers..."
