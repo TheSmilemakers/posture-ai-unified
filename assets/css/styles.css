@@ -99,6 +99,12 @@
     --color-bg-tertiary: #FFFFFF;       /* Pure white for inputs */
     --color-bg-inverse: #57564F;        /* Dark backgrounds */
     
+    /* Semi-transparent variants for glassmorphism */
+    --color-bg-primary-alpha: rgba(248, 243, 206, 0.95);
+    --color-bg-secondary-alpha: rgba(221, 218, 208, 0.95);
+    --color-bg-tertiary-alpha: rgba(255, 255, 255, 0.9);
+    --color-bg-card-glass: rgba(248, 243, 206, 0.85);
+    
     /* Interactive states */
     --color-primary: #57564F;           /* Primary actions */
     --color-primary-hover: #3F3E3A;     /* Darker on hover */
@@ -128,21 +134,27 @@
     --border-color: var(--color-border-light);
     --text-muted: var(--color-text-secondary);
     
-    /* Spacing System */
-    --spacing-xs: 0.25rem;
-    --spacing-sm: 0.5rem;
-    --spacing-md: 1rem;
-    --spacing-lg: 1.5rem;
-    --spacing-xl: 2rem;
+    /* Fluid Spacing System */
+    --spacing-xs: clamp(0.125rem, 0.1rem + 0.125vw, 0.25rem);
+    --spacing-sm: clamp(0.25rem, 0.2rem + 0.25vw, 0.5rem);
+    --spacing-md: clamp(0.5rem, 0.4rem + 0.5vw, 1rem);
+    --spacing-lg: clamp(1rem, 0.8rem + 1vw, 1.5rem);
+    --spacing-xl: clamp(1.5rem, 1.2rem + 1.5vw, 2rem);
+    --spacing-2xl: clamp(2rem, 1.5rem + 2.5vw, 3rem);
     
-    /* Typography */
+    /* Typography - Fluid Type Scale */
     --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-size-sm: 0.875rem;
-    --font-size-base: 1rem;
-    --font-size-lg: 1.125rem;
-    --font-size-xl: 1.5rem;
-    --font-size-2xl: 2rem;
-    --font-size-3xl: 2.5rem;
+    --font-size-sm: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+    --font-size-base: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
+    --font-size-lg: clamp(1rem, 0.925rem + 0.375vw, 1.125rem);
+    --font-size-xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+    --font-size-2xl: clamp(1.5rem, 1.2rem + 1.5vw, 2rem);
+    --font-size-3xl: clamp(2rem, 1.5rem + 2.5vw, 2.5rem);
+    
+    /* Dynamic Line Heights */
+    --line-height-tight: calc(1em + 0.5ex);
+    --line-height-base: calc(1em + 1ex);
+    --line-height-loose: calc(1em + 2ex);
     
     /* Borders & Effects */
     --border-radius: 0.5rem;
@@ -245,27 +257,62 @@ a:hover {
 }
 
 /* ===========================
-   App Container
+   App Container with Background
    =========================== */
 .app-container {
     max-width: 100%;
     min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height */
     background: var(--color-bg-primary);
     position: relative;
+    isolation: isolate; /* Create stacking context */
+}
+
+/* Medical visualization background */
+.app-container::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url('../img/Posture_bg.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    opacity: 0.06; /* Subtle for readability */
+    z-index: -1;
+    filter: blur(1px);
+    will-change: transform; /* Optimize for scrolling */
+}
+
+/* Reduce background opacity on mobile for performance */
+@media (max-width: 768px) {
+    .app-container::before {
+        opacity: 0.04;
+        filter: blur(2px);
+    }
+}
+
+/* Dark mode background adjustment */
+@media (prefers-color-scheme: dark) {
+    .app-container::before {
+        opacity: 0.03;
+        filter: blur(2px) invert(1);
+    }
 }
 
 /* ===========================
-   Header Styles
+   Header Styles with Logical Properties
    =========================== */
 .app-header {
     background: var(--color-bg-inverse);
     color: var(--color-text-inverse);
-    padding: var(--spacing-lg);
+    padding-block: var(--spacing-lg);
+    padding-inline: max(var(--spacing-md), env(safe-area-inset-left), env(safe-area-inset-right));
     text-align: center;
     position: sticky;
-    top: 0;
+    inset-block-start: 0;
     z-index: var(--z-header);
     box-shadow: var(--shadow-md);
+    contain: layout style;
 }
 
 .app-header h1 {
@@ -276,6 +323,48 @@ a:hover {
 .app-header p {
     font-size: var(--font-size-sm);
     color: var(--color-text-inverse);
+}
+
+/* Background Toggle Button */
+.background-toggle {
+    position: absolute;
+    inset-inline-end: var(--spacing-lg);
+    inset-block-start: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.background-toggle:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.background-toggle .toggle-icon {
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+}
+
+body.no-background .background-toggle .toggle-icon {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
+@media (max-width: 768px) {
+    .background-toggle {
+        inset-inline-end: var(--spacing-md);
+        width: 40px;
+        height: 40px;
+    }
 }
 
 /* ===========================
@@ -292,21 +381,29 @@ a:hover {
 
 .mode-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--spacing-lg);
+    grid-template-columns: repeat(
+        auto-fit, 
+        minmax(min(100%, 280px), 1fr)
+    );
+    gap: clamp(1rem, 2vw, 1.5rem);
     margin-top: var(--spacing-xl);
+    contain: layout style;
 }
 
 .mode-card {
-    background: var(--color-bg-tertiary);
+    background: var(--color-bg-card-glass);
+    backdrop-filter: blur(10px) saturate(150%);
+    -webkit-backdrop-filter: blur(10px) saturate(150%);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-xl);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 8px 32px rgba(87, 86, 79, 0.1);
     cursor: pointer;
     transition: var(--transition-base);
-    border: 3px solid var(--color-border-light);
+    border: 2px solid rgba(255, 255, 255, 0.2);
     position: relative;
     overflow: hidden;
+    container-type: inline-size;
+    container-name: mode-card;
 }
 
 .mode-card:hover,
@@ -353,16 +450,16 @@ a:hover {
 }
 
 .mode-features li {
-    padding: var(--spacing-xs) 0;
+    padding-block: var(--spacing-xs);
     color: var(--color-text-primary);
     position: relative;
-    padding-left: 1.5rem;
+    padding-inline-start: 1.5rem;
 }
 
 .mode-features li::before {
     content: '✓';
     position: absolute;
-    left: 0;
+    inset-inline-start: 0;
     color: var(--success-color);
     font-weight: bold;
 }
@@ -392,13 +489,14 @@ a:hover {
    =========================== */
 .nav-bar {
     background: var(--light-bg);
-    border-bottom: 2px solid var(--border-color);
-    padding: var(--spacing-md);
+    border-block-end: 2px solid var(--border-color);
+    padding-block: var(--spacing-md);
+    padding-inline: max(var(--spacing-md), env(safe-area-inset-left), env(safe-area-inset-right));
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
-    top: 70px;
+    inset-block-start: 70px;
     z-index: var(--z-nav);
 }
 
@@ -484,12 +582,20 @@ a:hover {
 }
 
 .photo-card {
-    background: var(--light-bg);
+    background: var(--color-bg-secondary-alpha);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-lg);
     text-align: center;
     position: relative;
     transition: var(--transition-base);
+    container-type: inline-size;
+    aspect-ratio: 4/3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    contain: layout style paint;
 }
 
 .photo-card.completed {
@@ -549,12 +655,14 @@ a:hover {
 }
 
 .uploaded-image {
-    max-width: 100%;
-    max-height: 300px;
+    width: 100%;
+    height: auto;
+    max-height: min(60vh, 400px);
     object-fit: contain;
     border-radius: var(--border-radius);
     margin-bottom: var(--spacing-md);
     transition: opacity 0.3s ease;
+    aspect-ratio: auto;
 }
 
 .uploaded-image.loading {
@@ -575,7 +683,7 @@ a:hover {
    Button Styles
    =========================== */
 .btn {
-    padding: var(--spacing-sm) var(--spacing-xl);
+    padding: max(0.625rem, 2.5vh) clamp(1rem, 5vw, 2rem);
     background: var(--primary-gradient);
     color: white;
     border: none;
@@ -590,6 +698,9 @@ a:hover {
     gap: var(--spacing-sm);
     text-decoration: none;
     font-family: inherit;
+    min-height: max(44px, 10vh, 2.75rem);
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .btn:hover {
@@ -675,9 +786,10 @@ a:hover {
    =========================== */
 .camera-container {
     position: relative;
-    width: 100%;
-    max-width: 640px;
+    width: min(100%, 640px);
+    aspect-ratio: 4/3;
     margin: 0 auto;
+    contain: layout style;
 }
 
 .camera-view {
@@ -728,18 +840,25 @@ a:hover {
    =========================== */
 .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: var(--spacing-md);
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(max(250px, 25vw), 1fr)
+    );
+    gap: clamp(0.75rem, 2vw, 1rem);
     margin-bottom: var(--spacing-xl);
+    contain: layout style;
 }
 
 .metric-card {
-    background: white;
+    background: var(--color-bg-tertiary-alpha);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border: 2px solid var(--border-color);
     border-radius: var(--border-radius);
     padding: var(--spacing-lg);
     border-left: 4px solid var(--primary-color);
     transition: var(--transition-base);
+    contain: layout style;
 }
 
 .metric-card:hover {
@@ -813,12 +932,10 @@ a:hover {
    =========================== */
 .loading-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(4px);
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
     display: none;
     align-items: center;
     justify-content: center;
@@ -853,27 +970,44 @@ a:hover {
    Forms
    =========================== */
 .form-group {
-    margin-bottom: var(--spacing-lg);
+    margin-block-end: var(--spacing-lg);
+    container-type: inline-size;
 }
 
 .form-label {
     display: block;
     font-weight: 600;
     color: var(--dark-text);
-    margin-bottom: var(--spacing-sm);
+    margin-block-end: var(--spacing-sm);
 }
 
 .form-input,
 .form-select,
 .form-textarea {
     width: 100%;
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding-block: clamp(0.5rem, 2vh, 0.75rem);
+    padding-inline: clamp(0.75rem, 3vw, 1rem);
     border: 2px solid var(--border-color);
     border-radius: var(--border-radius);
-    font-size: var(--font-size-base);
+    font-size: max(16px, 1rem); /* Prevents iOS zoom */
     transition: border-color 0.3s ease;
     font-family: inherit;
-    background: white;
+    background: var(--color-bg-tertiary-alpha);
+}
+
+/* Adaptive form layout based on container width */
+@container (width > 400px) {
+    .form-group {
+        display: grid;
+        grid-template-columns: max(30%, 150px) 1fr;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .form-label {
+        text-align: end;
+        margin-block-end: 0;
+    }
 }
 
 .form-input:focus,
@@ -1007,7 +1141,56 @@ a:hover {
    Responsive Design
    =========================== */
 
-/* Mobile Styles */
+/* Container Queries for Component Independence */
+@container mode-card (width < 300px) {
+    .mode-title { font-size: 1.1rem; }
+    .mode-icon { font-size: 2.5rem; }
+    .mode-features { font-size: 0.875rem; }
+}
+
+@container mode-card (width > 400px) {
+    .mode-icon { font-size: 4rem; }
+    .mode-features li { padding: var(--spacing-sm) 0; }
+}
+
+/* Touch Device Optimizations */
+@media (pointer: coarse) {
+    .btn,
+    .tab-btn,
+    .upload-area {
+        position: relative;
+    }
+    
+    .btn::after,
+    .tab-btn::after,
+    .upload-area::after {
+        content: '';
+        position: absolute;
+        inset: -0.5rem;
+        /* Invisible expanded hit area */
+    }
+    
+    .action-buttons {
+        gap: max(1rem, 3vh);
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: max(20px, 5vw);
+        height: max(20px, 5vw);
+    }
+}
+
+/* Safe Area Insets for Notched Devices */
+.app-header {
+    padding-top: max(var(--spacing-lg), env(safe-area-inset-top));
+    padding-inline: max(var(--spacing-md), env(safe-area-inset-left), env(safe-area-inset-right));
+}
+
+.nav-bar {
+    padding-inline: max(var(--spacing-md), env(safe-area-inset-left), env(safe-area-inset-right));
+}
+
+/* Mobile Styles with Intrinsic Sizing */
 @media (max-width: 768px) {
     .mode-grid {
         grid-template-columns: 1fr;
@@ -1079,6 +1262,40 @@ a:hover {
     }
 }
 
+/* Foldable Device Support */
+@media (spanning: single-fold-vertical) {
+    .main-content.active {
+        display: grid;
+        grid-template-columns: env(viewport-segment-width 0 0) env(viewport-segment-width 1 0);
+        gap: calc(env(viewport-segment-right 0 0) - env(viewport-segment-left 1 0));
+    }
+    
+    .tab-nav {
+        grid-column: 1;
+    }
+    
+    .tab-content {
+        grid-column: 2;
+    }
+}
+
+/* High Resolution Medical Displays */
+@media (min-resolution: 2dppx) {
+    .uploaded-image,
+    .pose-canvas {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+}
+
+/* Medical Display Color Gamut */
+@media (color-gamut: p3) {
+    :root {
+        --color-primary: color(display-p3 0.341 0.337 0.31);
+        --color-bg-primary: color(display-p3 0.973 0.953 0.808);
+    }
+}
+
 /* Print Styles */
 @media print {
     .app-header,
@@ -1095,6 +1312,10 @@ a:hover {
     
     .app-container {
         box-shadow: none;
+    }
+    
+    .app-container::before {
+        display: none;
     }
 }
 
@@ -1420,8 +1641,43 @@ a:hover {
 .mode-card,
 .btn,
 .tab-btn,
-.metric-card {
+.metric-card,
+.photo-card,
+.notification {
     will-change: transform;
+    transform: translateZ(0);
+}
+
+/* CSS Containment for better performance */
+.mode-content,
+.tab-content,
+.results-container {
+    contain: layout style;
+    content-visibility: auto;
+}
+
+/* Disable background for reduced motion or user preference */
+@media (prefers-reduced-motion: reduce) {
+    .app-container::before {
+        display: none;
+    }
+}
+
+/* Background toggle class */
+body.no-background .app-container::before {
+    display: none;
+}
+
+/* High performance mode for older devices */
+@media (max-width: 768px) and (max-resolution: 1.5dppx) {
+    .app-container::before {
+        background-attachment: scroll; /* Better performance than fixed */
+    }
+    
+    * {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
 }
 
 /* Optimize font loading */

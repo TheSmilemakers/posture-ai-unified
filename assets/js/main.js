@@ -25,6 +25,27 @@ function checkAuth() {
     return true;
 }
 
+// Initialize background toggle functionality
+function initializeBackgroundToggle() {
+    const bgToggle = document.getElementById('bgToggle');
+    if (!bgToggle) return;
+    
+    // Check for saved preference
+    const savedPref = localStorage.getItem('pra_background_disabled');
+    if (savedPref === 'true') {
+        document.body.classList.add('no-background');
+    }
+    
+    // Add toggle functionality
+    bgToggle.addEventListener('click', () => {
+        const isDisabled = document.body.classList.toggle('no-background');
+        localStorage.setItem('pra_background_disabled', isDisabled.toString());
+        
+        // Update aria-pressed for accessibility
+        bgToggle.setAttribute('aria-pressed', isDisabled.toString());
+    });
+}
+
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Check authentication first
@@ -39,6 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize UI components
     initializeUI();
+    
+    // Initialize background toggle
+    initializeBackgroundToggle();
     
     // Add global error handler
     window.addEventListener('error', (event) => {
