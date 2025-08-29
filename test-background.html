@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: #F8F3CE;
+        }
+        
+        .test-container {
+            position: relative;
+            min-height: 100vh;
+            isolation: isolate;
+        }
+        
+        .test-container::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('assets/img/Posture_bg.png');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.2;
+            z-index: -1;
+        }
+        
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header {
+            background: #57564F;
+            color: #F8F3CE;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .toggle-btn {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="header">
+            <h1>Background Test</h1>
+            <button class="toggle-btn">🖼️</button>
+        </div>
+        <div class="content">
+            <h2>Testing Background Image</h2>
+            <p>You should see the Posture_bg.png image behind this content at 20% opacity.</p>
+            <p>The toggle button should be visible in the header.</p>
+            <img src="assets/img/Posture_bg.png" style="max-width: 200px; margin-top: 20px;">
+            <p>↑ This is the image that should appear as background</p>
+        </div>
+    </div>
+</body>
+</html>

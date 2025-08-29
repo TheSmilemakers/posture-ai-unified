@@ -20,6 +20,10 @@
     padding: 20px;
 }
 
+.clinical-disclaimer.hidden {
+    display: none !important;
+}
+
 .disclaimer-content {
     background: white;
     border-radius: 12px;
@@ -221,13 +225,15 @@ body {
     font-size: var(--font-size-base);
     line-height: 1.6;
     color: var(--color-text-primary);
-    background: var(--color-bg-primary);
+    background-color: var(--color-bg-primary);
     min-height: 100vh;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     text-align: center;
+    margin: 0;
+    padding: 0;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -264,7 +270,6 @@ a:hover {
     max-width: 100%;
     min-height: 100vh;
     min-height: 100dvh; /* Dynamic viewport height */
-    background: var(--color-bg-primary);
     position: relative;
     isolation: isolate; /* Create stacking context */
 }
@@ -273,15 +278,17 @@ a:hover {
 .app-container::before {
     content: '';
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-image: url('../img/Posture_bg.png');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
-    opacity: 0.06; /* Subtle for readability */
+    opacity: 0.15; /* Increased for visibility */
     z-index: -1;
-    filter: blur(1px);
-    will-change: transform; /* Optimize for scrolling */
+    pointer-events: none;
 }
 
 /* Reduce background opacity on mobile for performance */
@@ -329,21 +336,20 @@ a:hover {
 /* Background Toggle Button */
 .background-toggle {
     position: absolute;
-    right: var(--spacing-lg);
+    right: 20px;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.5);
     border-radius: 50%;
     width: 44px;
     height: 44px;
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
+    z-index: 10;
     font-family: inherit;
 }
 
