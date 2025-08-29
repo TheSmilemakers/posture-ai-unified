@@ -16,7 +16,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 9999;
+    z-index: 10000;
     padding: 20px;
 }
 
@@ -225,7 +225,7 @@ body {
     font-size: var(--font-size-base);
     line-height: 1.6;
     color: var(--color-text-primary);
-    background-color: var(--color-bg-primary);
+    /* Remove background color to allow image to show */
     min-height: 100vh;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
@@ -271,23 +271,23 @@ a:hover {
     min-height: 100vh;
     min-height: 100dvh; /* Dynamic viewport height */
     position: relative;
-    isolation: isolate; /* Create stacking context */
+    background-color: var(--color-bg-primary); /* Yellow background moved here */
 }
 
 /* Medical visualization background */
 .app-container::before {
     content: '';
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
+    width: 100%;
+    height: 100%;
     background-image: url('../img/Posture_bg.png');
     background-size: cover;
     background-position: center;
-    background-attachment: fixed;
-    opacity: 0.15; /* Increased for visibility */
-    z-index: -1;
+    background-repeat: no-repeat;
+    opacity: 0.2; /* Increased for better visibility */
+    z-index: 0;
     pointer-events: none;
 }
 
@@ -344,12 +344,12 @@ a:hover {
     border-radius: 50%;
     width: 44px;
     height: 44px;
-    display: flex !important;
+    display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    z-index: 10;
+    z-index: 200;
     font-family: inherit;
 }
 
@@ -388,6 +388,8 @@ body.no-background .background-toggle .toggle-icon {
     margin: 0 auto;
     align-items: center;
     text-align: center;
+    position: relative;
+    z-index: 1;
 }
 
 .mode-grid {
@@ -483,6 +485,8 @@ body.no-background .background-toggle .toggle-icon {
 .main-content {
     display: none;
     animation: fadeIn 0.5s ease-in-out;
+    position: relative;
+    z-index: 1;
 }
 
 .main-content.active {
