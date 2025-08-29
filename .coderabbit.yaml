@@ -1,0 +1,100 @@
+# CodeRabbit Configuration for Posture AI Unified App
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+
+# Review Settings
+reviews:
+  # Enable high-level summary of changes
+  high_level_summary: true
+  
+  # Enable poem generation in review summaries (fun feature)
+  poem: false
+  
+  # Enable review status checks
+  review_status: true
+  
+  # Enable code suggestions
+  collapse_walkthrough: false
+  
+  # Auto-approve PRs from dependabot
+  auto_review:
+    enabled: true
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT MERGE"
+    base_branches:
+      - main
+      - develop
+
+# Language-specific settings
+language_specific:
+  javascript:
+    # Enable linting with ESLint
+    linter: true
+    
+    # Check for security vulnerabilities
+    security_check: true
+    
+    # Review test coverage
+    test_review: true
+
+# Path filters - which files to review
+path_filters:
+  # Always review these paths
+  included_paths:
+    - "assets/js/**"
+    - "api/**"
+    - "*.html"
+    - "*.css"
+    - "*.json"
+    - "vercel.json"
+    
+  # Never review these paths
+  excluded_paths:
+    - "node_modules/**"
+    - "dist/**"
+    - "build/**"
+    - ".git/**"
+    - "*.min.js"
+    - "*.min.css"
+    - "test-*.html"
+
+# Custom review instructions
+instructions:
+  - "This is a medical posture analysis application, so please pay special attention to data accuracy and patient safety"
+  - "Check for proper error handling in all MediaPipe operations"
+  - "Ensure all patient data handling follows privacy best practices"
+  - "Verify that biomechanical calculations are properly documented"
+  - "Check for accessibility compliance (WCAG AAA standards)"
+  - "Ensure proper cleanup of MediaPipe resources to prevent memory leaks"
+  - "Verify API endpoints have proper authentication checks"
+
+# Chat commands configuration
+chat_commands:
+  - name: "security"
+    description: "Perform a security review of the changes"
+    
+  - name: "performance"
+    description: "Analyze performance implications of the changes"
+    
+  - name: "accessibility"
+    description: "Review accessibility compliance"
+
+# Tool integrations
+tools:
+  # Enable JSDoc checking
+  jsdoc: true
+  
+  # Enable TypeScript checking (if applicable)
+  typescript: false
+  
+  # Security scanning
+  security:
+    enabled: true
+    
+# Review scope
+scope:
+  # Review changed files only
+  auto_incremental_review: true
+  
+  # Enable early access features
+  early_access: false
