@@ -3,7 +3,7 @@
  * Enables offline functionality and caching
  */
 
-const CACHE_NAME = 'posture-ai-v1.0.3'; // Fix background image visibility
+const CACHE_NAME = 'posture-ai-v1.0.4'; // Full background visibility with translucent UI
 const urlsToCache = [
     './',
     './index.html',
