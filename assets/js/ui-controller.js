@@ -1344,8 +1344,45 @@ function handleKeyboardShortcuts(event) {
  */
 function handleGlobalClick(event) {
     const target = event.target;
-    const button = target.closest('[data-action]');
     
+    // Handle mode selection cards FIRST (before checking for data-action)
+    if (target.closest('.mode-card')) {
+        const modeCard = target.closest('.mode-card');
+        const selectedMode = modeCard.dataset.mode;
+        console.log('🔘 Mode card clicked:', {
+            element: modeCard,
+            mode: selectedMode,
+            classList: Array.from(modeCard.classList),
+            dataset: modeCard.dataset
+        });
+        
+        if (selectedMode) {
+            console.log('🚀 Calling selectMode with:', selectedMode);
+            selectMode(selectedMode);
+        } else {
+            console.error('❌ No mode found in dataset:', modeCard.dataset);
+        }
+        return; // Exit after handling mode selection
+    }
+    
+    // Handle back button
+    if (target.closest('.nav-back')) {
+        backToModeSelection();
+        return;
+    }
+    
+    // Handle tab buttons
+    if (target.closest('.tab-btn')) {
+        const tabBtn = target.closest('.tab-btn');
+        const tabName = tabBtn.dataset.tab;
+        if (tabName && UIState.currentMode) {
+            showTab(UIState.currentMode, tabName);
+        }
+        return;
+    }
+    
+    // Now handle buttons with data-action
+    const button = target.closest('[data-action]');
     if (!button) return;
     
     const action = button.dataset.action;
@@ -1443,39 +1480,6 @@ function handleGlobalClick(event) {
         console.error('Error handling click:', error);
         setButtonState(button, 'error');
         showNotification('Action failed. Please try again.', 'error');
-    }
-    
-    // Handle mode selection cards
-    if (target.closest('.mode-card')) {
-        const modeCard = target.closest('.mode-card');
-        const selectedMode = modeCard.dataset.mode;
-        console.log('🔘 Mode card clicked:', {
-            element: modeCard,
-            mode: selectedMode,
-            classList: Array.from(modeCard.classList),
-            dataset: modeCard.dataset
-        });
-        
-        if (selectedMode) {
-            console.log('🚀 Calling selectMode with:', selectedMode);
-            selectMode(selectedMode);
-        } else {
-            console.error('❌ No mode found in dataset:', modeCard.dataset);
-        }
-    }
-    
-    // Handle back button
-    if (target.closest('.nav-back')) {
-        backToModeSelection();
-    }
-    
-    // Handle tab buttons
-    if (target.closest('.tab-btn')) {
-        const tabBtn = target.closest('.tab-btn');
-        const tabName = tabBtn.dataset.tab;
-        if (tabName && UIState.currentMode) {
-            showTab(UIState.currentMode, tabName);
-        }
     }
 }
 
