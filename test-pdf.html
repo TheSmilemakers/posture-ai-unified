@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Generation Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        button {
+            background: #4A90E2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #357ABD;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>PDF Generation Test</h1>
+    
+    <button onclick="testQuickModePDF()">Test Quick Mode PDF</button>
+    <button onclick="testClinicalModePDF()">Test Clinical Mode PDF</button>
+    <button onclick="testAdvancedModePDF()">Test Advanced Mode PDF</button>
+    
+    <div id="status" class="status"></div>
+
+    <script type="module">
+        import { generatePDF } from './assets/js/utils.js';
+        
+        window.testQuickModePDF = async () => {
+            const status = document.getElementById('status');
+            try {
+                status.className = 'status';
+                status.textContent = 'Generating Quick Mode PDF...';
+                
+                const data = {
+                    mode: 'quick',
+                    timestamp: new Date().toISOString(),
+                    score: '85%',
+                    results: {
+                        headTilt: { angle: 5.2, direction: 'Right' },
+                        shoulderLevel: { difference: 12.5, higherSide: 'Left' },
+                        hipAlignment: { status: 'Level' }
+                    },
+                    recommendations: [
+                        'Chin tucks - 3 sets of 10 repetitions',
+                        'Wall angels - 2 sets of 15 repetitions',
+                        'Shoulder rolls - 3 sets of 10 each direction'
+                    ]
+                };
+                
+                await generatePDF(data, 'quick-test.pdf');
+                status.className = 'status success';
+                status.textContent = '✅ Quick Mode PDF generated successfully!';
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ Error: ' + error.message;
+            }
+        };
+        
+        window.testClinicalModePDF = async () => {
+            const status = document.getElementById('status');
+            try {
+                status.className = 'status';
+                status.textContent = 'Generating Clinical Mode PDF...';
+                
+                const data = {
+                    mode: 'clinical',
+                    clientInfo: {
+                        name: 'John Doe',
+                        date: '2025-01-15',
+                        assessor: 'Dr. Smith'
+                    },
+                    photos: {
+                        front: {
+                            analysis: {
+                                headTilt: 3.5,
+                                shoulderLevel: 2.1,
+                                hipLevel: 1.8
+                            }
+                        },
+                        side: {
+                            analysis: {
+                                forwardHead: 4.2,
+                                kyphosis: 42,
+                                lordosis: 35
+                            }
+                        }
+                    },
+                    movements: {
+                        exercises: {
+                            release: ['Upper trap stretch', 'Pec minor stretch'],
+                            reset: ['Chin tucks', 'Wall angels'],
+                            rebuild: ['Band pulls', 'Face pulls']
+                        }
+                    }
+                };
+                
+                await generatePDF(data, 'clinical-test.pdf');
+                status.className = 'status success';
+                status.textContent = '✅ Clinical Mode PDF generated successfully!';
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ Error: ' + error.message;
+            }
+        };
+        
+        window.testAdvancedModePDF = async () => {
+            const status = document.getElementById('status');
+            try {
+                status.className = 'status';
+                status.textContent = 'Generating Advanced Mode PDF...';
+                
+                const data = {
+                    mode: 'advanced',
+                    analysisData: {
+                        front: {
+                            measurements: [
+                                { name: 'Head Tilt', value: 5.2, unit: 'degrees', severity: 'Mild' },
+                                { name: 'Shoulder Asymmetry', value: 15, unit: 'mm', severity: 'Moderate' },
+                                { name: 'Q-Angle', value: 18, unit: 'degrees', severity: 'Normal' }
+                            ]
+                        },
+                        side: {
+                            measurements: [
+                                { name: 'Forward Head', value: 3.8, unit: 'cm', severity: 'Moderate' },
+                                { name: 'Kyphosis Angle', value: 48, unit: 'degrees', severity: 'Mild' }
+                            ]
+                        },
+                        back: {
+                            measurements: [
+                                { name: 'Scoliosis', value: 8, unit: 'degrees', severity: 'Mild' },
+                                { name: 'Shoulder Blade Symmetry', value: 12, unit: 'mm', severity: 'Normal' }
+                            ]
+                        }
+                    },
+                    recommendations: [
+                        'Focus on thoracic mobility exercises',
+                        'Strengthen deep neck flexors',
+                        'Improve shoulder blade stability'
+                    ]
+                };
+                
+                await generatePDF(data, 'advanced-test.pdf');
+                status.className = 'status success';
+                status.textContent = '✅ Advanced Mode PDF generated successfully!';
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ Error: ' + error.message;
+            }
+        };
+    </script>
+</body>
+</html>

@@ -67,24 +67,203 @@ export function downloadCSV(data, filename) {
 }
 
 /**
- * Generate PDF report (placeholder - would use a library like jsPDF in production)
+ * Generate PDF report using jsPDF
  * @param {Object} data - Report data
  * @param {string} filename - Filename for download
  */
-export function generatePDF(data, filename) {
-    // In production, this would use a PDF generation library
-    console.log('PDF generation requested:', data, filename);
-    
-    // For now, generate HTML and open in new window
-    const html = generateReportHTML(data);
-    const newWindow = window.open('', '_blank');
-    newWindow.document.write(html);
-    newWindow.document.close();
-    
-    // Trigger print dialog
-    setTimeout(() => {
-        newWindow.print();
-    }, 500);
+export async function generatePDF(data, filename) {
+    try {
+        // Dynamic import of jsPDF
+        const { jsPDF } = await import('jspdf');
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+        
+        // Add watermark for MVP
+        doc.setFontSize(40);
+        doc.setTextColor(230, 230, 230);
+        doc.text('MVP - Clinical Review Required', 105, 150, {
+            align: 'center',
+            angle: 45
+        });
+        
+        // Reset text color
+        doc.setTextColor(0, 0, 0);
+        
+        // Header
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        doc.text('Posture Analysis Report', 105, 20, { align: 'center' });
+        
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'normal');
+        doc.text('Two Tonys Treatment Clinic', 105, 30, { align: 'center' });
+        
+        doc.setFontSize(12);
+        doc.text(`Date: ${new Date().toLocaleDateString()}`, 105, 38, { align: 'center' });
+        
+        // Add safety disclaimer
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text('This report is for clinical reference only and should be interpreted by a qualified healthcare professional.', 105, 48, { align: 'center', maxWidth: 170 });
+        doc.setTextColor(0, 0, 0);
+        
+        let yPos = 65;
+        
+        // Patient Information
+        if (data.clientInfo || data.clientName) {
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('Patient Information', 20, yPos);
+            yPos += 10;
+            
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'normal');
+            
+            const clientInfo = data.clientInfo || {};
+            const patientName = clientInfo.name || data.clientName || 'Anonymous Patient';
+            doc.text(`Name: ${patientName}`, 20, yPos);
+            yPos += 7;
+            
+            if (clientInfo.date || data.assessmentDate) {
+                doc.text(`Assessment Date: ${clientInfo.date || data.assessmentDate}`, 20, yPos);
+                yPos += 7;
+            }
+            
+            if (clientInfo.assessor || data.assessor) {
+                doc.text(`Assessor: ${clientInfo.assessor || data.assessor}`, 20, yPos);
+                yPos += 7;
+            }
+            
+            yPos += 10;
+        }
+        
+        // Analysis Results
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.text('Analysis Results', 20, yPos);
+        yPos += 10;
+        
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        
+        // Process different data structures based on mode
+        if (data.mode === 'clinical' && data.photos) {
+            // Clinical mode results
+            Object.entries(data.photos).forEach(([view, viewData]) => {
+                if (viewData.analysis) {
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`${view.charAt(0).toUpperCase() + view.slice(1)} View:`, 20, yPos);
+                    yPos += 7;
+                    doc.setFont(undefined, 'normal');
+                    
+                    Object.entries(viewData.analysis).forEach(([metric, value]) => {
+                        if (typeof value === 'number') {
+                            const metricName = metric.replace(/([A-Z])/g, ' $1').trim();
+                            doc.text(`  • ${metricName}: ${formatNumber(value, 1)}°`, 25, yPos);
+                            yPos += 6;
+                        }
+                    });
+                    yPos += 5;
+                }
+            });
+        } else if (data.analysisData) {
+            // Advanced mode results
+            ['front', 'side', 'back'].forEach(view => {
+                const viewData = data.analysisData[view];
+                if (viewData && viewData.measurements && viewData.measurements.length > 0) {
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`${view.charAt(0).toUpperCase() + view.slice(1)} View:`, 20, yPos);
+                    yPos += 7;
+                    doc.setFont(undefined, 'normal');
+                    
+                    viewData.measurements.forEach(measurement => {
+                        const status = measurement.severity || 'Normal';
+                        doc.text(`  • ${measurement.name}: ${formatNumber(measurement.value, 1)} ${measurement.unit || '°'} (${status})`, 25, yPos);
+                        yPos += 6;
+                    });
+                    yPos += 5;
+                }
+            });
+        } else if (data.results || data.metrics) {
+            // Quick mode results
+            const results = data.results || data.metrics || {};
+            
+            if (results.headTilt) {
+                doc.text(`• Head Tilt: ${formatNumber(results.headTilt.angle, 1)}° ${results.headTilt.direction}`, 25, yPos);
+                yPos += 7;
+            }
+            if (results.shoulderLevel) {
+                doc.text(`• Shoulder Level: ${formatNumber(results.shoulderLevel.difference, 1)}mm difference`, 25, yPos);
+                yPos += 7;
+            }
+            if (results.hipAlignment) {
+                doc.text(`• Hip Alignment: ${results.hipAlignment.status}`, 25, yPos);
+                yPos += 7;
+            }
+        }
+        
+        // Check if we need a new page
+        if (yPos > 240) {
+            doc.addPage();
+            yPos = 30;
+        }
+        
+        // Recommendations/Exercise Prescriptions
+        if (data.recommendations || data.movements?.exercises || data.exercises) {
+            yPos += 10;
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('Recommendations', 20, yPos);
+            yPos += 10;
+            
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'normal');
+            
+            const recommendations = data.recommendations || 
+                                  (data.movements?.exercises ? Object.values(data.movements.exercises).flat() : null) ||
+                                  data.exercises || [];
+            
+            if (Array.isArray(recommendations)) {
+                recommendations.forEach((rec, index) => {
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 30;
+                    }
+                    const recText = typeof rec === 'object' ? rec.name || rec.exercise : rec;
+                    doc.text(`${index + 1}. ${recText}`, 25, yPos, { maxWidth: 160 });
+                    yPos += 8;
+                });
+            }
+        }
+        
+        // Add footer on last page
+        doc.setFontSize(9);
+        doc.setTextColor(128, 128, 128);
+        doc.text('Generated by Posture AI Analysis System', 105, 285, { align: 'center' });
+        doc.text('© Two Tonys Treatment Clinic', 105, 290, { align: 'center' });
+        
+        // Save the PDF
+        doc.save(filename);
+        
+        return true;
+    } catch (error) {
+        console.error('PDF generation error:', error);
+        
+        // Fallback to HTML report
+        const html = generateReportHTML(data);
+        const newWindow = window.open('', '_blank');
+        newWindow.document.write(html);
+        newWindow.document.close();
+        
+        setTimeout(() => {
+            newWindow.print();
+        }, 500);
+        
+        throw new Error('PDF generation failed, opened print dialog instead');
+    }
 }
 
 /**

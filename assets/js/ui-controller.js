@@ -91,6 +91,11 @@ export function initializeUI() {
     
     // Test database connection on startup
     testDatabaseOnStartup();
+    
+    // Check for previous session after a small delay
+    setTimeout(() => {
+        checkForPreviousSession();
+    }, 500);
 }
 
 /**
@@ -132,11 +137,63 @@ export function selectMode(mode) {
 }
 
 /**
- * Return to mode selection
+ * Return to mode selection with comprehensive cleanup
  */
 export function backToModeSelection() {
-    UIState.currentMode = null;
+    // Save current session before cleanup
+    saveSessionToStorage();
+    
+    // Clean up MediaPipe
+    if (UIState.pose) {
+        try {
+            UIState.pose.close();
+            UIState.pose = null;
+        } catch (error) {
+            console.warn('Error closing MediaPipe:', error);
+        }
+    }
+    
+    // Close camera streams
     closeCamera();
+    
+    // Clear all image data and blob URLs
+    clearAllImageData();
+    
+    // Reset UI state
+    UIState.currentMode = null;
+    UIState.currentTab = null;
+    UIState.currentPatientId = null;
+    UIState.currentPatientName = null;
+    UIState.currentAssessmentId = null;
+    
+    // Reset analysis data
+    UIState.analysisData = {
+        quick: {},
+        clinical: {
+            clientInfo: {},
+            photos: {},
+            movements: {}
+        },
+        advanced: {
+            front: null,
+            side: null,
+            back: null
+        }
+    };
+    
+    // Reset upload states
+    UIState.uploadedViews = {
+        clinical: {
+            front: false,
+            side: false,
+            back: false
+        },
+        advanced: {
+            front: false,
+            side: false,
+            back: false
+        }
+    };
     
     // Hide main content
     document.getElementById('main-content').classList.remove('active');
@@ -148,6 +205,15 @@ export function backToModeSelection() {
     document.querySelectorAll('.mode-content').forEach(content => {
         content.classList.add('hidden');
     });
+    
+    // Clear any form inputs
+    clearAllFormInputs();
+    
+    // Hide patient selection
+    document.getElementById('patient-selection').classList.add('hidden');
+    
+    // Show notification
+    showNotification('Session ended. All data cleared.', 'info');
 }
 
 /**
@@ -1391,6 +1457,14 @@ export async function exportBiomechanics() {
         // Download JSON file
         downloadJSON(exportData, `biomechanics-${Date.now()}.json`);
         
+        // Generate PDF report
+        try {
+            await generatePDF(exportData, `biomechanics-report-${Date.now()}.pdf`);
+            showNotification('Biomechanics data exported with PDF report!', 'success');
+        } catch (pdfError) {
+            console.warn('PDF generation failed, but JSON export succeeded:', pdfError);
+        }
+        
         // Also save to database if connected
         try {
             const dbResult = await saveCompleteAssessment({
@@ -1684,25 +1758,31 @@ async function saveClinicalAssessment() {
  */
 async function generateClinicalPDFReport() {
     try {
+        showLoading('Generating PDF report...');
+        
         // Collect final data
         if (UIState.currentTab) {
             collectCurrentTabData(UIState.currentTab);
         }
         
         const reportData = {
+            mode: 'clinical',
+            patientName: UIState.currentPatientName || 'Anonymous Patient',
+            patientId: UIState.currentPatientId,
             ...UIState.analysisData.clinical,
             generatedAt: new Date().toISOString(),
             clinic: 'Two Tonys Treatment Clinic'
         };
         
         // Use the existing generatePDF function from utils
-        generatePDF(reportData, `clinical-report-${Date.now()}.pdf`);
-        showNotification('PDF report generated!', 'success');
+        await generatePDF(reportData, `clinical-report-${Date.now()}.pdf`);
+        hideLoading();
+        showNotification('PDF report downloaded successfully!', 'success');
         
     } catch (error) {
         console.error('Error generating PDF:', error);
-        showNotification('Error generating PDF report', 'error');
-        throw error;
+        hideLoading();
+        showNotification(error.message || 'Error generating PDF report', 'error');
     }
 }
 
@@ -1838,23 +1918,6 @@ function continueToMode() {
     }
 }
 
-/**
- * Return to mode selection
- */
-function backToModeSelection() {
-    document.getElementById('patient-selection').classList.add('hidden');
-    document.getElementById('mode-selection').style.display = 'block';
-    
-    // Clear form
-    document.getElementById('new-patient-name').value = '';
-    document.getElementById('new-patient-email').value = '';
-    document.getElementById('new-patient-phone').value = '';
-    
-    // Reset state
-    UIState.currentMode = null;
-    UIState.currentPatientId = null;
-    UIState.currentPatientName = null;
-}
 
 /**
  * Show content for a specific mode
@@ -1895,4 +1958,160 @@ function showModeContent(mode) {
         console.error('Error showing mode content:', error);
         showNotification('Error loading mode. Please try again.', 'error');
     }
+}
+
+/**
+ * Clear all image data and revoke blob URLs
+ */
+function clearAllImageData() {
+    // Clear all img elements with blob or data URLs
+    document.querySelectorAll('img[src^="blob:"], img[src^="data:"]').forEach(img => {
+        if (img.src.startsWith('blob:')) {
+            URL.revokeObjectURL(img.src);
+        }
+        img.src = '';
+        img.classList.add('hidden');
+    });
+    
+    // Clear all canvas elements
+    document.querySelectorAll('canvas').forEach(canvas => {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+    
+    // Hide all preview containers
+    document.querySelectorAll('[id*="-preview"]').forEach(preview => {
+        preview.classList.add('hidden');
+    });
+}
+
+/**
+ * Clear all form inputs
+ */
+function clearAllFormInputs() {
+    // Clear text inputs
+    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"]').forEach(input => {
+        input.value = '';
+    });
+    
+    // Clear textareas
+    document.querySelectorAll('textarea').forEach(textarea => {
+        textarea.value = '';
+    });
+    
+    // Uncheck checkboxes
+    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // Reset selects
+    document.querySelectorAll('select').forEach(select => {
+        select.selectedIndex = 0;
+    });
+}
+
+/**
+ * Save current session to localStorage
+ */
+function saveSessionToStorage() {
+    try {
+        if (!UIState.currentMode || 
+            (UIState.currentMode === 'quick' && Object.keys(UIState.analysisData.quick).length === 0) ||
+            (UIState.currentMode === 'clinical' && Object.keys(UIState.analysisData.clinical.clientInfo).length === 0) ||
+            (UIState.currentMode === 'advanced' && !UIState.analysisData.advanced.front)) {
+            // No meaningful data to save
+            return;
+        }
+        
+        const sessionData = {
+            timestamp: new Date().toISOString(),
+            mode: UIState.currentMode,
+            patientId: UIState.currentPatientId,
+            patientName: UIState.currentPatientName,
+            assessmentId: UIState.currentAssessmentId,
+            analysisData: UIState.analysisData,
+            uploadedViews: UIState.uploadedViews,
+            currentTab: UIState.currentTab
+        };
+        
+        // Encrypt sensitive data (basic obfuscation for MVP)
+        const encodedData = btoa(JSON.stringify(sessionData));
+        localStorage.setItem('postureAI_lastSession', encodedData);
+        
+        // Also save timestamp for session expiry
+        localStorage.setItem('postureAI_sessionTime', new Date().toISOString());
+        
+    } catch (error) {
+        console.warn('Error saving session:', error);
+    }
+}
+
+/**
+ * Restore session from localStorage
+ */
+export function restoreSession() {
+    try {
+        const encodedData = localStorage.getItem('postureAI_lastSession');
+        const sessionTime = localStorage.getItem('postureAI_sessionTime');
+        
+        if (!encodedData || !sessionTime) return null;
+        
+        // Check if session is less than 1 hour old
+        const sessionAge = Date.now() - new Date(sessionTime).getTime();
+        const ONE_HOUR = 60 * 60 * 1000;
+        
+        if (sessionAge > ONE_HOUR) {
+            // Session expired
+            localStorage.removeItem('postureAI_lastSession');
+            localStorage.removeItem('postureAI_sessionTime');
+            return null;
+        }
+        
+        // Decode and return session data
+        const sessionData = JSON.parse(atob(encodedData));
+        return sessionData;
+        
+    } catch (error) {
+        console.warn('Error restoring session:', error);
+        return null;
+    }
+}
+
+/**
+ * Check for and offer to restore previous session
+ */
+export function checkForPreviousSession() {
+    const session = restoreSession();
+    
+    if (session) {
+        const timeSince = new Date(session.timestamp).toLocaleTimeString();
+        const message = `Found incomplete ${session.mode} assessment from ${timeSince}. Would you like to continue?`;
+        
+        if (confirm(message)) {
+            // Restore the session
+            UIState.currentMode = session.mode;
+            UIState.currentPatientId = session.patientId;
+            UIState.currentPatientName = session.patientName;
+            UIState.currentAssessmentId = session.assessmentId;
+            UIState.analysisData = session.analysisData;
+            UIState.uploadedViews = session.uploadedViews;
+            UIState.currentTab = session.currentTab;
+            
+            // Skip mode selection and patient selection
+            document.getElementById('mode-selection').style.display = 'none';
+            document.getElementById('patient-selection').classList.add('hidden');
+            
+            // Continue to the mode
+            continueToMode();
+            
+            showNotification('Previous session restored successfully!', 'success');
+            return true;
+        } else {
+            // Clear the stored session
+            localStorage.removeItem('postureAI_lastSession');
+            localStorage.removeItem('postureAI_sessionTime');
+        }
+    }
+    
+    return false;
 }
