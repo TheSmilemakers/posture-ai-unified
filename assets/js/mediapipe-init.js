@@ -52,81 +52,172 @@ export const LANDMARKS = {
 };
 
 /**
- * Initialize MediaPipe Pose with appropriate settings
+ * Initialize MediaPipe Pose with enhanced error handling and configuration
  * @param {string} mode - Analysis mode ('quick', 'clinical', 'advanced')
- * @returns {Pose} Configured pose instance
+ * @returns {Promise<Pose>} Promise that resolves to configured pose instance
  */
 export function initializePose(mode = 'quick') {
-    const pose = new Pose({
-        locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    return new Promise((resolve, reject) => {
+        try {
+            // Check if MediaPipe is available
+            if (typeof Pose === 'undefined') {
+                throw new Error('MediaPipe Pose library not loaded');
+            }
+            
+            const pose = new Pose({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+                }
+            });
+            
+            // Set complexity based on mode with validation
+            const complexityMap = {
+                'quick': 0,
+                'clinical': 1, 
+                'advanced': 2
+            };
+            
+            const complexity = complexityMap[mode] || 0;
+            
+            // Enhanced configuration based on mode
+            const config = {
+                modelComplexity: complexity,
+                smoothLandmarks: true,
+                enableSegmentation: false,
+                minDetectionConfidence: mode === 'advanced' ? 0.7 : 0.5,
+                minTrackingConfidence: mode === 'advanced' ? 0.7 : 0.5
+            };
+            
+            console.log(`Initializing MediaPipe Pose for ${mode} mode with config:`, config);
+            
+            pose.setOptions(config);
+            
+            // Add initialization timeout
+            const timeout = setTimeout(() => {
+                reject(new Error('MediaPipe initialization timed out'));
+            }, 10000);
+            
+            // Test if pose is working by attempting to initialize
+            pose.initialize().then(() => {
+                clearTimeout(timeout);
+                console.log('MediaPipe Pose initialized successfully');
+                resolve(pose);
+            }).catch(error => {
+                clearTimeout(timeout);
+                reject(new Error(`MediaPipe initialization failed: ${error.message}`));
+            });
+            
+        } catch (error) {
+            console.error('Error creating MediaPipe Pose:', error);
+            reject(error);
         }
     });
-    
-    // Set complexity based on mode
-    const complexity = mode === 'advanced' ? 2 : mode === 'clinical' ? 1 : 0;
-    
-    pose.setOptions({
-        modelComplexity: complexity,
-        smoothLandmarks: true,
-        enableSegmentation: false,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-    });
-    
-    return pose;
 }
 
 /**
- * Draw pose connections on canvas
+ * Draw pose connections on canvas with enhanced error handling
  * @param {CanvasRenderingContext2D} ctx - Canvas context
  * @param {Array} landmarks - Pose landmarks
  * @param {Array} connections - Connection pairs
  * @param {Object} style - Drawing style options
  */
 export function drawConnectors(ctx, landmarks, connections, style = {}) {
-    const { color = '#667eea', lineWidth = 2 } = style;
-    
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    
-    connections.forEach(([start, end]) => {
-        const startPoint = landmarks[start];
-        const endPoint = landmarks[end];
-        
-        if (startPoint && endPoint && startPoint.visibility > 0.5 && endPoint.visibility > 0.5) {
-            ctx.beginPath();
-            ctx.moveTo(startPoint.x * ctx.canvas.width, startPoint.y * ctx.canvas.height);
-            ctx.lineTo(endPoint.x * ctx.canvas.width, endPoint.y * ctx.canvas.height);
-            ctx.stroke();
+    try {
+        if (!ctx || !landmarks || !connections) {
+            console.warn('Invalid parameters for drawConnectors');
+            return;
         }
-    });
+        
+        const { color = '#667eea', lineWidth = 2 } = style;
+        
+        // Save canvas state
+        ctx.save();
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        connections.forEach(([start, end]) => {
+            try {
+                const startPoint = landmarks[start];
+                const endPoint = landmarks[end];
+                
+                if (startPoint && endPoint && 
+                    startPoint.visibility > 0.5 && endPoint.visibility > 0.5 &&
+                    !isNaN(startPoint.x) && !isNaN(startPoint.y) &&
+                    !isNaN(endPoint.x) && !isNaN(endPoint.y)) {
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        startPoint.x * ctx.canvas.width, 
+                        startPoint.y * ctx.canvas.height
+                    );
+                    ctx.lineTo(
+                        endPoint.x * ctx.canvas.width, 
+                        endPoint.y * ctx.canvas.height
+                    );
+                    ctx.stroke();
+                }
+            } catch (error) {
+                console.warn('Error drawing connection:', error);
+            }
+        });
+        
+        // Restore canvas state
+        ctx.restore();
+        
+    } catch (error) {
+        console.error('Error in drawConnectors:', error);
+    }
 }
 
 /**
- * Draw pose landmarks on canvas
+ * Draw pose landmarks on canvas with enhanced error handling
  * @param {CanvasRenderingContext2D} ctx - Canvas context
  * @param {Array} landmarks - Pose landmarks
  * @param {Object} style - Drawing style options
  */
 export function drawLandmarks(ctx, landmarks, style = {}) {
-    const { color = '#764ba2', radius = 3 } = style;
-    
-    ctx.fillStyle = color;
-    
-    landmarks.forEach(landmark => {
-        if (landmark && landmark.visibility > 0.5) {
-            ctx.beginPath();
-            ctx.arc(
-                landmark.x * ctx.canvas.width,
-                landmark.y * ctx.canvas.height,
-                radius,
-                0,
-                2 * Math.PI
-            );
-            ctx.fill();
+    try {
+        if (!ctx || !landmarks) {
+            console.warn('Invalid parameters for drawLandmarks');
+            return;
         }
-    });
+        
+        const { color = '#764ba2', radius = 3 } = style;
+        
+        // Save canvas state
+        ctx.save();
+        
+        ctx.fillStyle = color;
+        
+        landmarks.forEach((landmark, index) => {
+            try {
+                if (landmark && 
+                    landmark.visibility > 0.5 &&
+                    !isNaN(landmark.x) && !isNaN(landmark.y) &&
+                    landmark.x >= 0 && landmark.x <= 1 &&
+                    landmark.y >= 0 && landmark.y <= 1) {
+                    
+                    const x = landmark.x * ctx.canvas.width;
+                    const y = landmark.y * ctx.canvas.height;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            } catch (error) {
+                console.warn(`Error drawing landmark ${index}:`, error);
+            }
+        });
+        
+        // Restore canvas state
+        ctx.restore();
+        
+    } catch (error) {
+        console.error('Error in drawLandmarks:', error);
+    }
 }
 
 /**
