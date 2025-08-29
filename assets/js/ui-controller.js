@@ -72,6 +72,9 @@ export function initializeUI() {
     // Add touch event handling for mobile
     initializeTouchHandlers();
     
+    // Initialize auto-hide header
+    initializeAutoHideHeader();
+    
     // Initialize charts if needed
     if (typeof Chart !== 'undefined') {
         Chart.defaults.font.family = getComputedStyle(document.body).getPropertyValue('--font-family');
@@ -81,12 +84,45 @@ export function initializeUI() {
     document.addEventListener('click', handleGlobalClick);
     document.addEventListener('change', handleGlobalChange);
     
-    // Add event listener for disclaimer button
+    // Enhanced disclaimer handling with debugging and fallback
+    const disclaimer = document.querySelector('.clinical-disclaimer');
     const disclaimerButton = document.querySelector('.clinical-disclaimer .btn-warning');
-    if (disclaimerButton) {
+    
+    if (disclaimer && disclaimerButton) {
+        console.log('✅ Disclaimer elements found, setting up handlers...');
+        
+        // Primary click handler
         disclaimerButton.addEventListener('click', () => {
-            document.querySelector('.clinical-disclaimer').classList.add('hidden');
+            console.log('🚀 Disclaimer button clicked, dismissing modal...');
+            disclaimer.classList.add('hidden');
+            console.log('✅ Disclaimer dismissed successfully');
         });
+        
+        // Alternative handler - click anywhere on button area
+        disclaimerButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            console.log('📱 Disclaimer button touched, dismissing modal...');
+            disclaimer.classList.add('hidden');
+        });
+        
+        // Fallback - auto-dismiss after 10 seconds if still visible
+        setTimeout(() => {
+            if (disclaimer && !disclaimer.classList.contains('hidden')) {
+                console.log('⏰ Auto-dismissing disclaimer after timeout...');
+                disclaimer.classList.add('hidden');
+            }
+        }, 10000);
+        
+        // Emergency fallback - Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && disclaimer && !disclaimer.classList.contains('hidden')) {
+                console.log('⌨️ Escape key pressed, dismissing disclaimer...');
+                disclaimer.classList.add('hidden');
+            }
+        });
+        
+    } else {
+        console.warn('❌ Disclaimer elements not found:', { disclaimer, disclaimerButton });
     }
     
     // Test database connection on startup
@@ -117,21 +153,110 @@ async function testDatabaseOnStartup() {
 }
 
 /**
+ * Initialize auto-hide header functionality
+ */
+function initializeAutoHideHeader() {
+    const header = document.getElementById('appHeader');
+    if (!header) return;
+    
+    let lastScrollY = window.scrollY;
+    let scrollThreshold = 100; // Hide header after scrolling 100px
+    let hideTimeout;
+    
+    function handleScroll() {
+        const currentScrollY = window.scrollY;
+        
+        // Don't hide header at the top of the page
+        if (currentScrollY < scrollThreshold) {
+            header.classList.remove('header-hidden');
+            return;
+        }
+        
+        // Hide header when scrolling down, show when scrolling up
+        if (currentScrollY > lastScrollY) {
+            // Scrolling down - hide header
+            clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(() => {
+                header.classList.add('header-hidden');
+            }, 150); // Small delay to prevent flickering
+        } else {
+            // Scrolling up - show header immediately
+            clearTimeout(hideTimeout);
+            header.classList.remove('header-hidden');
+        }
+        
+        lastScrollY = currentScrollY;
+    }
+    
+    // Throttled scroll event for better performance
+    let scrollTicking = false;
+    function throttledScroll() {
+        if (!scrollTicking) {
+            requestAnimationFrame(() => {
+                handleScroll();
+                scrollTicking = false;
+            });
+            scrollTicking = true;
+        }
+    }
+    
+    // Add scroll listener with passive for better performance
+    window.addEventListener('scroll', throttledScroll, { passive: true });
+    
+    // Show header on focus/interaction (accessibility)
+    header.addEventListener('focusin', () => {
+        header.classList.remove('header-hidden');
+    });
+    
+    // Show header when hovering near the top
+    document.addEventListener('mousemove', (e) => {
+        if (e.clientY < 80) { // Mouse near top of screen
+            header.classList.remove('header-hidden');
+        }
+    });
+    
+    console.log('✅ Auto-hide header initialized');
+}
+
+/**
  * Select analysis mode
  * @param {string} mode - Selected mode ('quick', 'clinical', 'advanced')
  */
 export function selectMode(mode) {
     try {
+        console.log('🎯 Mode selected:', mode);
         UIState.currentMode = mode;
         
+        // Validate required elements exist
+        const modeSelection = document.getElementById('mode-selection');
+        const patientSelection = document.getElementById('patient-selection');
+        
+        if (!modeSelection) {
+            throw new Error('Mode selection element not found');
+        }
+        if (!patientSelection) {
+            throw new Error('Patient selection element not found');
+        }
+        
+        console.log('✅ Mode selection elements found, transitioning...');
+        
         // Hide mode selection
-        document.getElementById('mode-selection').style.display = 'none';
+        modeSelection.style.display = 'none';
         
         // Show patient selection
-        document.getElementById('patient-selection').classList.remove('hidden');
+        patientSelection.classList.remove('hidden');
+        
+        // Add visual feedback
+        showNotification(`${mode.charAt(0).toUpperCase() + mode.slice(1)} mode selected`, 'success');
+        
+        console.log('✅ Successfully transitioned to patient selection');
         
     } catch (error) {
-        console.error('Error selecting mode:', error);
+        console.error('❌ Error selecting mode:', error);
+        console.error('Available elements:', {
+            modeSelection: !!document.getElementById('mode-selection'),
+            patientSelection: !!document.getElementById('patient-selection')
+        });
         showNotification('Error selecting mode. Please try again.', 'error');
     }
 }
@@ -1085,24 +1210,79 @@ function formatRiskName(condition) {
     return names[condition] || condition;
 }
 
+// Loading timeout management
+let loadingTimeout = null;
+let loadingStartTime = null;
+
 /**
- * Show loading overlay with optional custom message
+ * Show loading overlay with optional custom message and auto-hide timeout
  * @param {string} message - Optional loading message
+ * @param {number} timeoutMs - Auto-hide timeout in milliseconds (default: 30 seconds)
  */
-export function showLoading(message = 'Analyzing posture...') {
-    const loading = document.getElementById('loading');
-    const loadingText = loading.querySelector('.loading-text');
-    if (loadingText) {
-        loadingText.textContent = message;
+export function showLoading(message = 'Analyzing posture...', timeoutMs = 30000) {
+    try {
+        console.log('🔄 Showing loading:', message);
+        loadingStartTime = Date.now();
+        
+        const loading = document.getElementById('loading');
+        if (!loading) {
+            console.error('❌ Loading element not found');
+            return;
+        }
+        
+        const loadingText = loading.querySelector('.loading-text');
+        if (loadingText) {
+            loadingText.textContent = message;
+        }
+        
+        loading.classList.add('active');
+        
+        // Clear any existing timeout
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+        }
+        
+        // Set auto-hide timeout to prevent stuck loading
+        loadingTimeout = setTimeout(() => {
+            console.warn('⏰ Loading timeout reached, auto-hiding after', timeoutMs + 'ms');
+            hideLoading();
+            showNotification('Operation took longer than expected', 'warning');
+        }, timeoutMs);
+        
+    } catch (error) {
+        console.error('❌ Error showing loading:', error);
     }
-    loading.classList.add('active');
 }
 
 /**
  * Hide loading overlay
  */
 export function hideLoading() {
-    document.getElementById('loading').classList.remove('active');
+    try {
+        const loading = document.getElementById('loading');
+        if (!loading) {
+            console.error('❌ Loading element not found for hiding');
+            return;
+        }
+        
+        loading.classList.remove('active');
+        
+        // Clear timeout
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+            loadingTimeout = null;
+        }
+        
+        // Log duration if we have start time
+        if (loadingStartTime) {
+            const duration = Date.now() - loadingStartTime;
+            console.log('✅ Loading hidden after', duration + 'ms');
+            loadingStartTime = null;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error hiding loading:', error);
+    }
 }
 
 /**
@@ -1269,8 +1449,18 @@ function handleGlobalClick(event) {
     if (target.closest('.mode-card')) {
         const modeCard = target.closest('.mode-card');
         const selectedMode = modeCard.dataset.mode;
+        console.log('🔘 Mode card clicked:', {
+            element: modeCard,
+            mode: selectedMode,
+            classList: Array.from(modeCard.classList),
+            dataset: modeCard.dataset
+        });
+        
         if (selectedMode) {
+            console.log('🚀 Calling selectMode with:', selectedMode);
             selectMode(selectedMode);
+        } else {
+            console.error('❌ No mode found in dataset:', modeCard.dataset);
         }
     }
     
@@ -1839,25 +2029,48 @@ export async function saveQuickResults() {
 async function handleCreatePatient() {
     try {
         const name = document.getElementById('new-patient-name').value.trim();
-        const email = document.getElementById('new-patient-email').value.trim();
-        const phone = document.getElementById('new-patient-phone').value.trim();
+        const dateOfBirth = document.getElementById('new-patient-dob').value;
+        const complaints = document.getElementById('new-patient-complaints').value.trim();
         
+        // Enhanced validation for MVP fields
         if (!name) {
             showNotification('Please enter a patient name', 'error');
+            document.getElementById('new-patient-name').focus();
             throw new Error('Name required');
+        }
+        
+        if (!dateOfBirth) {
+            showNotification('Please enter the patient\'s date of birth', 'error');
+            document.getElementById('new-patient-dob').focus();
+            throw new Error('Date of birth required');
+        }
+        
+        if (!complaints) {
+            showNotification('Please describe the chief complaints', 'error');
+            document.getElementById('new-patient-complaints').focus();
+            throw new Error('Chief complaints required');
+        }
+        
+        // Age validation (optional but recommended)
+        const age = calculateAge(dateOfBirth);
+        if (age < 0 || age > 120) {
+            showNotification('Please enter a valid date of birth', 'error');
+            document.getElementById('new-patient-dob').focus();
+            throw new Error('Invalid date of birth');
         }
         
         showLoading('Creating patient record...');
         
         const patient = await createPatient({
             name,
-            email,
-            phone
+            dateOfBirth,
+            complaints
         });
         
         console.log('Patient created:', patient);
         UIState.currentPatientId = patient.id;
         UIState.currentPatientName = patient.name;
+        UIState.currentPatientComplaints = complaints;
         
         hideLoading();
         showNotification(`Patient "${patient.name}" created successfully!`, 'success');
@@ -1916,6 +2129,24 @@ function continueToMode() {
         hideLoading();
         showNotification('Error initializing mode. Please refresh and try again.', 'error');
     }
+}
+
+/**
+ * Helper function to calculate age from date of birth
+ * @param {string} dateOfBirth - Date of birth in YYYY-MM-DD format
+ * @returns {number} Age in years
+ */
+function calculateAge(dateOfBirth) {
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    
+    return age;
 }
 
 

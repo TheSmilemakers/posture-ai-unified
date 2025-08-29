@@ -88,15 +88,18 @@
 }
 
 /* ===========================
-   CSS Variables
+   CSS Variables - Modern 2025 Theme System
    =========================== */
 :root {
-    /* New Accessible Color System - Light Mode */
+    /* Enable light-dark theme system */
+    color-scheme: light dark;
+    
+    /* Modern light-dark() function with fallbacks */
     /* Primary colors from provided palette */
-    --color-text-primary: #57564F;      /* Main text - 7.67:1 on light bg */
-    --color-text-secondary: #6B6A64;    /* Secondary text - 5.2:1 on light bg */
-    --color-text-tertiary: #57564F;     /* Use primary for safety */
-    --color-text-inverse: #F8F3CE;      /* Light text on dark backgrounds */
+    --color-text-primary: #57564F;      /* Fallback for older browsers */
+    --color-text-secondary: #6B6A64;    /* Fallback for older browsers */
+    --color-text-tertiary: #57564F;     /* Fallback for older browsers */
+    --color-text-inverse: #F8F3CE;      /* Fallback for older browsers */
     
     --color-bg-primary: #F8F3CE;        /* Main background */
     --color-bg-secondary: #DDDAD0;      /* Card/section backgrounds */
@@ -170,6 +173,7 @@
     
     /* Transitions */
     --transition-base: all 0.3s ease;
+    --transition-theme: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
     
     /* Z-index Scale */
     --z-header: 100;
@@ -177,9 +181,55 @@
     --z-modal: 1000;
 }
 
-/* Dark mode support - comprehensive color system */
-@media (prefers-color-scheme: dark) {
+/* Modern light-dark() function implementation with progressive enhancement */
+@supports (color: light-dark(black, white)) {
     :root {
+        /* Override with modern light-dark() function (87% browser support 2025) */
+        --color-text-primary: light-dark(#57564F, #F8F3CE);
+        --color-text-secondary: light-dark(#6B6A64, #E6E1BD);
+        --color-text-tertiary: light-dark(#57564F, #DDDAD0);
+        --color-text-inverse: light-dark(#F8F3CE, #57564F);
+        
+        --color-bg-primary: light-dark(#F8F3CE, #2A2A27);
+        --color-bg-secondary: light-dark(#DDDAD0, #3A3A36);
+        --color-bg-tertiary: light-dark(#FFFFFF, #57564F);
+        --color-bg-inverse: light-dark(#57564F, #F8F3CE);
+        
+        /* Semi-transparent variants */
+        --color-bg-primary-alpha: light-dark(rgba(248, 243, 206, 0.95), rgba(42, 42, 39, 0.95));
+        --color-bg-secondary-alpha: light-dark(rgba(221, 218, 208, 0.95), rgba(58, 58, 54, 0.95));
+        --color-bg-tertiary-alpha: light-dark(rgba(255, 255, 255, 0.9), rgba(87, 86, 79, 0.9));
+        --color-bg-card-glass: light-dark(rgba(248, 243, 206, 0.85), rgba(58, 58, 54, 0.85));
+        
+        /* Interactive states */
+        --color-primary: light-dark(#57564F, #F8F3CE);
+        --color-primary-hover: light-dark(#3F3E3A, #E6E1BD);
+        --color-secondary: light-dark(#7A7A73, #DDDAD0);
+        --color-secondary-hover: light-dark(#626259, #C9C6BC);
+        
+        /* Semantic colors */
+        --color-success: light-dark(#2D7A2D, #4CAF50);
+        --color-warning: light-dark(#B87900, #FFB74D);
+        --color-danger: light-dark(#C92A2A, #FF6B6B);
+        --color-link: light-dark(#2B6CB0, #63A3ED);
+        
+        /* Borders & dividers */
+        --color-border-light: light-dark(#C9C6BC, #4A4A45);
+        --color-border-medium: light-dark(#B3B0A6, #57564F);
+        --color-border-dark: light-dark(#7A7A73, #7A7A73);
+        
+        /* Legacy mappings */
+        --primary-gradient: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+        --light-bg: var(--color-bg-primary);
+        --dark-text: var(--color-text-primary);
+        --border-color: var(--color-border-light);
+        --text-muted: var(--color-text-secondary);
+    }
+}
+
+/* Fallback for browsers that don't support light-dark() - Dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root:not([style*="color-scheme"]) {
         /* Dark mode colors - properly inverted for accessibility */
         --color-text-primary: #F8F3CE;        /* Light text - 7.67:1 on dark bg */
         --color-text-secondary: #E6E1BD;      /* Muted light text */
@@ -217,6 +267,37 @@
     }
 }
 
+/* Manual theme override support */
+html[data-theme="light"] {
+    color-scheme: light !important;
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark !important;
+}
+
+/* Light mode text visibility fixes - ensure no yellow text on yellow backgrounds */
+html[data-theme="light"] .mode-description,
+html[data-theme="light"] .mode-features li,
+html[data-theme="light"] .info-card p,
+html[data-theme="light"] .form-label,
+html[data-theme="light"] .tab-btn,
+html[data-theme="light"] .metric-title,
+html[data-theme="light"] .exercise-description,
+html[data-theme="light"] .summary-content p,
+:root:not([style*="dark"]) .mode-description,
+:root:not([style*="dark"]) .mode-features li {
+    color: #57564F !important; /* Force proper grey text in light mode */
+}
+
+/* Additional light mode secondary text fixes */
+html[data-theme="light"] .mode-features li,
+html[data-theme="light"] .exercise-duration,
+html[data-theme="light"] .photo-status,
+html[data-theme="light"] .metric-value {
+    color: #6B6A64 !important; /* Secondary grey text in light mode */
+}
+
 /* ===========================
    Base Typography & Layout
    =========================== */
@@ -234,6 +315,7 @@ body {
     text-align: center;
     margin: 0;
     padding: 0;
+    transition: var(--transition-theme);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -272,6 +354,7 @@ a:hover {
     min-height: 100dvh; /* Dynamic viewport height */
     position: relative;
     background-color: var(--color-bg-primary); /* Yellow background moved here */
+    transition: var(--transition-theme);
 }
 
 /* Medical visualization background */
@@ -308,71 +391,258 @@ a:hover {
 }
 
 /* ===========================
-   Header Styles with Logical Properties
+   Modern Header Styles (2025 Design)
    =========================== */
 .app-header {
-    background: var(--color-bg-inverse);
-    color: var(--color-text-inverse);
-    padding-block: var(--spacing-lg);
-    padding-inline: max(var(--spacing-md), env(safe-area-inset-left), env(safe-area-inset-right));
-    text-align: center;
-    position: sticky;
+    /* Narrow, professional profile */
+    height: 64px;
+    padding-block: 12px;
+    padding-inline: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
+    
+    /* Glassmorphism effect */
+    background: rgba(248, 243, 206, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    
+    /* Modern positioning */
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: var(--z-header);
-    box-shadow: var(--shadow-md);
+    
+    /* Subtle border instead of heavy shadow */
+    border-bottom: 1px solid rgba(87, 86, 79, 0.15);
+    box-shadow: 0 1px 3px rgba(87, 86, 79, 0.08);
+    
+    /* Flex layout for brand and controls */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    
+    /* Smooth transitions for auto-hide */
+    transform: translateY(0);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     contain: layout style;
 }
 
-.app-header h1 {
-    font-size: clamp(1.5rem, 4vw, 2.5rem);
-    margin-bottom: var(--spacing-xs);
+/* Auto-hide on scroll */
+.app-header.header-hidden {
+    transform: translateY(-100%);
 }
 
-.app-header p {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-inverse);
+/* Dark mode glassmorphism */
+@media (prefers-color-scheme: dark) {
+    .app-header {
+        background: rgba(42, 42, 39, 0.85);
+        border-bottom: 1px solid rgba(248, 243, 206, 0.15);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
 }
 
-/* Background Toggle Button */
-.background-toggle {
-    position: absolute;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.3);
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
+/* Manual theme overrides */
+html[data-theme="light"] .app-header {
+    background: rgba(248, 243, 206, 0.85);
+    border-bottom: 1px solid rgba(87, 86, 79, 0.15);
+}
+
+html[data-theme="dark"] .app-header {
+    background: rgba(42, 42, 39, 0.85);
+    border-bottom: 1px solid rgba(248, 243, 206, 0.15);
+}
+
+/* Header Brand Section */
+.header-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Center the brand text */
+    gap: 12px;
+    flex: 1;
+    text-align: center; /* Center text within elements */
+}
+
+.brand-icon {
+    color: var(--color-primary);
+    flex-shrink: 0;
+    stroke-width: 2.5;
+}
+
+.header-text h1 {
+    font-size: clamp(1.125rem, 2.5vw, 1.375rem);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+}
+
+.header-text p {
+    font-size: clamp(0.75rem, 1.5vw, 0.875rem);
+    font-weight: 400;
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.3;
+    opacity: 0.8;
+}
+
+/* Responsive header text */
+@media (max-width: 480px) {
+    .header-text p {
+        display: none; /* Hide subtitle on very small screens */
+    }
+}
+
+/* Header Controls Container */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Control Buttons - Modern Design */
+.control-btn {
+    background: rgba(87, 86, 79, 0.1);
+    border: 1px solid rgba(87, 86, 79, 0.15);
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.3s ease;
-    z-index: 200;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-family: inherit;
+    position: relative;
 }
 
-.background-toggle:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-50%) scale(1.1);
+.control-btn:hover {
+    background: rgba(87, 86, 79, 0.15);
+    border-color: rgba(87, 86, 79, 0.25);
+    transform: translateY(-1px);
 }
 
-.background-toggle .toggle-icon {
-    font-size: 1.2rem;
-    transition: transform 0.3s ease;
+.control-btn:active {
+    transform: translateY(0);
+    background: rgba(87, 86, 79, 0.2);
 }
 
-body.no-background .background-toggle .toggle-icon {
-    opacity: 0.5;
-    text-decoration: line-through;
+.control-icon {
+    color: var(--color-text-primary);
+    transition: all 0.2s ease;
+}
+
+/* Dark mode control buttons */
+@media (prefers-color-scheme: dark) {
+    .control-btn {
+        background: rgba(248, 243, 206, 0.1);
+        border: 1px solid rgba(248, 243, 206, 0.15);
+    }
+    
+    .control-btn:hover {
+        background: rgba(248, 243, 206, 0.15);
+        border-color: rgba(248, 243, 206, 0.25);
+    }
+    
+    .control-btn:active {
+        background: rgba(248, 243, 206, 0.2);
+    }
+}
+
+/* Theme toggle states */
+.theme-toggle[data-theme="light"] .control-icon {
+    transform: rotate(0deg);
+}
+
+.theme-toggle[data-theme="dark"] .control-icon {
+    transform: rotate(180deg);
+}
+
+.theme-toggle[data-theme="system"] .control-icon {
+    opacity: 0.7;
+}
+
+/* Background toggle specific styles */
+body.no-background .background-toggle {
+    background: rgba(201, 42, 42, 0.1);
+    border-color: rgba(201, 42, 42, 0.2);
+}
+
+body.no-background .background-toggle .control-icon {
+    color: var(--color-danger);
+    opacity: 0.8;
+}
+
+body.no-background .background-toggle:hover {
+    background: rgba(201, 42, 42, 0.15);
+    border-color: rgba(201, 42, 42, 0.3);
+}
+
+/* Responsive header adjustments */
+@media (max-width: 768px) {
+    .app-header {
+        height: 56px;
+        padding-block: 8px;
+        padding-inline: 12px;
+    }
+    
+    .header-brand {
+        gap: 8px;
+    }
+    
+    .brand-icon {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .header-controls {
+        gap: 6px;
+    }
+    
+    .control-btn {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .control-icon {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+    .app-header {
+        padding-inline: 8px;
+    }
+    
+    .header-controls {
+        gap: 4px;
+    }
+    
+    .control-btn {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .control-icon {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+/* Adjust main content to account for fixed header */
+.mode-selection,
+.patient-selection,
+.main-content {
+    padding-top: 80px; /* Space for fixed header */
 }
 
 @media (max-width: 768px) {
-    .background-toggle {
-        inset-inline-end: var(--spacing-md);
-        width: 40px;
-        height: 40px;
+    .mode-selection,
+    .patient-selection,
+    .main-content {
+        padding-top: 64px; /* Smaller space for mobile header */
     }
 }
 
@@ -455,7 +725,7 @@ body.no-background .background-toggle .toggle-icon {
 }
 
 .mode-description {
-    color: var(--color-text-primary);
+    color: var(--color-text-primary) !important; /* Force grey text, not yellow */
     margin-bottom: var(--spacing-md);
 }
 
@@ -466,7 +736,7 @@ body.no-background .background-toggle .toggle-icon {
 
 .mode-features li {
     padding-block: var(--spacing-xs);
-    color: var(--color-text-primary);
+    color: var(--color-text-primary) !important; /* Force grey text, not yellow */
     position: relative;
     padding-inline-start: 1.5rem;
 }
@@ -1209,8 +1479,8 @@ body.no-background .background-toggle .toggle-icon {
 
 /* Safe Area Insets for Notched Devices */
 .app-header {
-    padding-top: max(var(--spacing-lg), env(safe-area-inset-top));
-    padding-inline: max(var(--spacing-md), env(safe-area-inset-left), env(safe-area-inset-right));
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-inline: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
 }
 
 .nav-bar {
@@ -1733,12 +2003,13 @@ body.no-background .app-container::before {
     .results-container .metric-label,
     .results-container .metric-title,
     .chart-container .chart-legend {
-        color: var(--dark-text); /* Use darker color on mobile */
+        color: var(--dark-text) !important; /* Force grey text on mobile */
         font-weight: 500; /* Slightly bolder for clarity */
     }
     
     /* Ensure mode description specifically is dark */
     .mode-card .mode-description {
+        color: var(--dark-text) !important; /* Force grey text */
         font-weight: 500;
         line-height: 1.6;
     }

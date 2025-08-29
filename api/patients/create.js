@@ -2,13 +2,14 @@
 // POST /api/patients/create
 
 import { createClient } from '@supabase/supabase-js';
+import { requireAuth } from '../auth-check.js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://anxeptegnpfroajjzuqk.supabase.co',
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -24,7 +25,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { name, email, phone, dateOfBirth, clinicianId } = req.body;
+    const { name, email, phone, dateOfBirth, complaints, clinicianId } = req.body;
 
     // Validate required fields
     if (!name) {
@@ -44,6 +45,7 @@ export default async function handler(req, res) {
         email,
         phone,
         date_of_birth: dateOfBirth,
+        complaints: complaints || null,
         created_by: createdBy
       })
       .select()
@@ -83,3 +85,5 @@ export default async function handler(req, res) {
     });
   }
 }
+
+export default requireAuth(handler);

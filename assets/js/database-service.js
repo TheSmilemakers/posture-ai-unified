@@ -3,10 +3,23 @@
  * Handles all backend API interactions for the Posture Rehab AI App
  */
 
-// API configuration
-const API_BASE = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000/api' 
-    : '/api';
+// API configuration - Updated for production domain
+const API_BASE = (() => {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // For localhost development
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        // Try to detect the actual port being used
+        const port = window.location.port || '3000';
+        return `${protocol}//${hostname}:${port}/api`;
+    }
+    
+    // For production domains (including posture.rajanmaher.com)
+    return '/api';
+})();
+
+console.log('Database Service - API Base URL:', API_BASE);
 
 // Auth headers for all API calls
 const authHeaders = {
@@ -26,7 +39,8 @@ export async function createPatient(patientData) {
                 name: patientData.name,
                 email: patientData.email || '',
                 phone: patientData.phone || '',
-                dateOfBirth: patientData.dateOfBirth || null
+                dateOfBirth: patientData.dateOfBirth || null,
+                complaints: patientData.complaints || ''
             })
         });
         
@@ -182,19 +196,37 @@ export async function storeAnalysisResults(assessmentId, analysisData) {
  */
 export async function testDatabaseConnection() {
     try {
+        console.log('Testing database connection to:', `${API_BASE}/test-db`);
+        
         const response = await fetch(`${API_BASE}/test-db`, {
             headers: authHeaders
         });
         
+        console.log('Database test response status:', response.status);
+        console.log('Database test response headers:', Object.fromEntries(response.headers));
+        
+        // Check if response is actually JSON
+        const contentType = response.headers.get('content-type');
+        console.log('Response content-type:', contentType);
+        
+        if (!contentType || !contentType.includes('application/json')) {
+            const textResponse = await response.text();
+            console.error('❌ Expected JSON but got:', textResponse.substring(0, 500));
+            throw new Error(`API returned ${contentType || 'unknown content'} instead of JSON. This usually means environment variables are missing in Vercel deployment.`);
+        }
+        
         const data = await response.json();
+        console.log('Database test response data:', data);
         
         if (!response.ok || !data.connected) {
-            throw new Error(data.error || 'Database connection failed');
+            throw new Error(data.error || `Database connection failed (Status: ${response.status})`);
         }
         
         return data;
     } catch (error) {
         console.error('Database connection test failed:', error);
+        console.error('API Base URL was:', API_BASE);
+        console.error('Full URL attempted:', `${API_BASE}/test-db`);
         throw error;
     }
 }
