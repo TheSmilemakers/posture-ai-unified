@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#57564F">
     <meta name="description" content="AI-powered posture analysis with clinical-grade biomechanical assessment">
     
     <title>Posture AI - Advanced Biomechanical Analysis</title>
@@ -37,7 +37,7 @@
                     <li>Results should be verified by qualified healthcare professionals</li>
                     <li>By proceeding, you confirm patient consent has been obtained</li>
                 </ul>
-                <button class="btn btn-warning" onclick="document.querySelector('.clinical-disclaimer').style.display='none'">
+                <button class="btn btn-warning">
                     I Understand - Proceed with Testing
                 </button>
             </div>
@@ -58,7 +58,7 @@
             
             <div class="mode-grid">
                 <!-- Quick Assessment Mode -->
-                <div class="mode-card" onclick="selectMode('quick')">
+                <div class="mode-card" data-mode="quick">
                     <span class="mode-icon">📱</span>
                     <h3 class="mode-title">Quick Assessment</h3>
                     <p class="mode-description">
@@ -73,7 +73,7 @@
                 </div>
 
                 <!-- Clinical Assessment Mode -->
-                <div class="mode-card" onclick="selectMode('clinical')">
+                <div class="mode-card" data-mode="clinical">
                     <span class="mode-icon">🏥</span>
                     <h3 class="mode-title">Clinical Assessment</h3>
                     <p class="mode-description">
@@ -88,7 +88,7 @@
                 </div>
 
                 <!-- Advanced Biomechanics Mode -->
-                <div class="mode-card" onclick="selectMode('advanced')">
+                <div class="mode-card" data-mode="advanced">
                     <span class="mode-icon">🔬</span>
                     <h3 class="mode-title">Advanced Biomechanics</h3>
                     <p class="mode-description">
@@ -108,7 +108,7 @@
         <div id="main-content" class="main-content">
             <!-- Navigation Bar -->
             <nav class="nav-bar">
-                <button class="nav-back" onclick="backToModeSelection()">
+                                <button class="nav-back">
                     <span>←</span>
                     <span>Back</span>
                 </button>
@@ -182,13 +182,13 @@
             <div id="clinical-mode" class="mode-content hidden">
                 <!-- Tab Navigation -->
                 <div class="tab-nav">
-                    <button class="tab-btn active" onclick="showTab('clinical', 'client-info')">Client Info</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'assessment')">Assessment</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'north-star')">North Star</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'release')">Release</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'reset')">Reset</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'rebuild')">Rebuild</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'summary')">Summary</button>
+                    <button class="tab-btn active" data-tab="client-info">Client Info</button>
+                    <button class="tab-btn" data-tab="assessment">Assessment</button>
+                    <button class="tab-btn" data-tab="north-star">North Star</button>
+                    <button class="tab-btn" data-tab="release">Release</button>
+                    <button class="tab-btn" data-tab="reset">Reset</button>
+                    <button class="tab-btn" data-tab="rebuild">Rebuild</button>
+                    <button class="tab-btn" data-tab="summary">Summary</button>
                 </div>
 
                 <!-- Tab Contents -->
@@ -401,7 +401,7 @@
                         </div>
 
                         <div class="action-buttons">
-                            <button class="btn" onclick="generateClinicalReport()">
+                            <button class="btn" id="generate-clinical-report">
                                 <span>📄</span>
                                 <span>Generate Clinical Report</span>
                             </button>

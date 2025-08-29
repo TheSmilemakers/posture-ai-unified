@@ -8,20 +8,29 @@ import { initializeUI, selectMode, backToModeSelection, showTab, startCamera, cl
          resetQuickAnalysis, resetAdvancedAnalysis, saveQuickResults } from './ui-controller.js';
 
 // Global functions that need to be accessible from HTML
-window.selectMode = selectMode;
-window.backToModeSelection = backToModeSelection;
-window.showTab = showTab;
-window.startCamera = startCamera;
-window.handleFileUpload = handleFileUpload;
-window.analyzePosture = analyzePosture;
-window.generateClinicalReport = generateClinicalReport;
-window.exportBiomechanics = exportBiomechanics;
-window.resetQuickAnalysis = resetQuickAnalysis;
-window.resetAdvancedAnalysis = resetAdvancedAnalysis;
-window.saveQuickResults = saveQuickResults;
+// No longer needed, event listeners are used instead.
+
+// Simple authentication for MVP
+function checkAuth() {
+    const isAuthenticated = sessionStorage.getItem('pra_auth') === 'true';
+    if (!isAuthenticated) {
+        const password = prompt('Please enter the access password:');
+        // Simple password check - replace 'your-password-here' with your actual password
+        if (password !== 'posture2025') {
+            alert('Incorrect password. Please reload the page to try again.');
+            // Don't redirect, just stop execution
+            return false;
+        }
+        sessionStorage.setItem('pra_auth', 'true');
+    }
+    return true;
+}
 
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Check authentication first
+    if (!checkAuth()) return;
+    
     console.log('Posture AI Analysis - Initializing...');
     
     // Check browser compatibility

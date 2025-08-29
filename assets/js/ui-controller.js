@@ -67,6 +67,120 @@ export function initializeUI() {
     
     // Initialize charts if needed
     Chart.defaults.font.family = getComputedStyle(document.body).getPropertyValue('--font-family');
+
+    // Add event listener for disclaimer button
+    const disclaimerButton = document.querySelector('.clinical-disclaimer .btn-warning');
+    if (disclaimerButton) {
+        disclaimerButton.addEventListener('click', () => {
+            document.querySelector('.clinical-disclaimer').classList.add('hidden');
+        });
+    }
+
+    // Add event listeners for mode selection cards
+    const modeCards = document.querySelectorAll('.mode-card');
+    modeCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const mode = card.dataset.mode;
+            if (mode) {
+                selectMode(mode);
+            }
+        });
+    });
+
+    // Add event listener for back button
+    const backButton = document.querySelector('.nav-back');
+    if (backButton) {
+        backButton.addEventListener('click', backToModeSelection);
+    }
+
+    // Add event listeners for tab navigation buttons
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tab = button.dataset.tab;
+            if (tab) {
+                showTab(UIState.currentMode, tab);
+            }
+        });
+    });
+
+    // Quick Assessment Mode
+    const startCameraQuick = document.getElementById('start-camera-quick');
+    if (startCameraQuick) {
+        startCameraQuick.addEventListener('click', () => startCamera('quick'));
+    }
+
+    const uploadPhotoQuick = document.getElementById('upload-photo-quick');
+    if (uploadPhotoQuick) {
+        uploadPhotoQuick.addEventListener('change', (event) => handleFileUpload('quick', event));
+    }
+
+    const quickAnalyzeBtn = document.getElementById('quick-analyze-btn');
+    if (quickAnalyzeBtn) {
+        quickAnalyzeBtn.addEventListener('click', () => analyzePosture('quick'));
+    }
+
+    const saveQuickResultsBtn = document.getElementById('save-quick-results');
+    if (saveQuickResultsBtn) {
+        saveQuickResultsBtn.addEventListener('click', saveQuickResults);
+    }
+
+    const resetQuickAnalysisBtn = document.getElementById('reset-quick-analysis');
+    if (resetQuickAnalysisBtn) {
+        resetQuickAnalysisBtn.addEventListener('click', resetQuickAnalysis);
+    }
+
+    // Clinical Assessment Mode
+    const nextToAssessment = document.getElementById('next-to-assessment');
+    if (nextToAssessment) {
+        nextToAssessment.addEventListener('click', () => showTab('clinical', 'assessment'));
+    }
+
+    const prevToClientInfo = document.getElementById('prev-to-client-info');
+    if (prevToClientInfo) {
+        prevToClientInfo.addEventListener('click', () => showTab('clinical', 'client-info'));
+    }
+
+    const nextToNorthStar = document.getElementById('next-to-north-star');
+    if (nextToNorthStar) {
+        nextToNorthStar.addEventListener('click', () => showTab('clinical', 'north-star'));
+    }
+
+    const clinicalFileUploads = document.querySelectorAll('#clinical-mode input[type="file"]');
+    clinicalFileUploads.forEach(input => {
+        input.addEventListener('change', (event) => {
+            const view = input.dataset.view;
+            if (view) {
+                handleFileUpload(`clinical-${view}`, event);
+            }
+        });
+    });
+
+    // Advanced Biomechanics Mode
+    const advancedFileUploads = document.querySelectorAll('#advanced-mode input[type="file"]');
+    advancedFileUploads.forEach(input => {
+        input.addEventListener('change', (event) => {
+            const view = input.dataset.view;
+            if (view) {
+                handleFileUpload(`advanced-${view}`, event);
+            }
+        });
+    });
+
+    const generateClinicalReportBtn = document.getElementById('generate-clinical-report');
+    if (generateClinicalReportBtn) {
+        generateClinicalReportBtn.addEventListener('click', generateClinicalReport);
+    }
+
+    const exportBiomechanicsBtn = document.getElementById('export-biomechanics');
+    if (exportBiomechanicsBtn) {
+        exportBiomechanicsBtn.addEventListener('click', exportBiomechanics);
+    }
+
+    const resetAdvancedAnalysisBtn = document.getElementById('reset-advanced-analysis');
+    if (resetAdvancedAnalysisBtn) {
+        resetAdvancedAnalysisBtn.addEventListener('click', resetAdvancedAnalysis);
+    }
 }
 
 /**

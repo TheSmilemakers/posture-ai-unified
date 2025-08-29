@@ -2,6 +2,7 @@
 // Access at: /api/test-db
 
 import { createClient } from '@supabase/supabase-js';
+import { requireAuth } from './auth-check.js';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -9,7 +10,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -68,3 +69,6 @@ export default async function handler(req, res) {
     });
   }
 }
+
+// Export with auth protection
+export default requireAuth(handler);

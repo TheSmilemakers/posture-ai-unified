@@ -107,12 +107,20 @@
             ? 'http://localhost:8000/api' 
             : '/api';
 
+        // Simple auth header for API calls
+        const authHeaders = {
+            'Authorization': 'Bearer posture-api-2025',
+            'Content-Type': 'application/json'
+        };
+
         async function testDatabase() {
             const resultDiv = document.getElementById('db-result');
             resultDiv.innerHTML = 'Testing connection...';
             
             try {
-                const response = await fetch(`${API_BASE}/test-db`);
+                const response = await fetch(`${API_BASE}/test-db`, {
+                    headers: authHeaders
+                });
                 const data = await response.json();
                 
                 if (data.connected) {
@@ -156,7 +164,7 @@
             try {
                 const response = await fetch(`${API_BASE}/patients/create`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders,
                     body: JSON.stringify({ name, email })
                 });
                 
@@ -195,7 +203,7 @@
             try {
                 const response = await fetch(`${API_BASE}/assessments/create`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders,
                     body: JSON.stringify({ 
                         patientId, 
                         assessmentType,
@@ -249,7 +257,7 @@
             try {
                 const response = await fetch(`${API_BASE}/assessments/analyze`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders,
                     body: JSON.stringify({ 
                         assessmentId,
                         measurements: sampleMeasurements,
