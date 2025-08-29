@@ -369,7 +369,7 @@ a:hover {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.2; /* Increased for better visibility */
+    opacity: 0.5; /* Increased for better visibility */
     z-index: 0;
     pointer-events: none;
 }
@@ -377,16 +377,17 @@ a:hover {
 /* Reduce background opacity on mobile for performance */
 @media (max-width: 768px) {
     .app-container::before {
-        opacity: 0.04;
-        filter: blur(2px);
+        opacity: 0.3; /* Increased from 0.04 for visibility */
+        filter: blur(1px); /* Reduced blur */
     }
 }
 
 /* Dark mode background adjustment */
 @media (prefers-color-scheme: dark) {
     .app-container::before {
-        opacity: 0.03;
-        filter: blur(2px) invert(1);
+        opacity: 0.25; /* Increased from 0.03 for visibility */
+        filter: blur(1px); /* Reduced blur, removed invert */
+        mix-blend-mode: soft-light; /* Better blending for dark mode */
     }
 }
 
@@ -636,6 +637,8 @@ body.no-background .background-toggle:hover {
 .patient-selection,
 .main-content {
     padding-top: 80px; /* Space for fixed header */
+    position: relative; /* Ensure content appears above background */
+    z-index: 1; /* Above the background image */
 }
 
 @media (max-width: 768px) {

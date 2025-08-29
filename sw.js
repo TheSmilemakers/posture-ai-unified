@@ -3,7 +3,7 @@
  * Enables offline functionality and caching
  */
 
-const CACHE_NAME = 'posture-ai-v1.0.2'; // Fix mode card click handling
+const CACHE_NAME = 'posture-ai-v1.0.3'; // Fix background image visibility
 const urlsToCache = [
     './',
     './index.html',
