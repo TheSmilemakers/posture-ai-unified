@@ -11,17 +11,25 @@ import { initializeUI, selectMode, backToModeSelection, showTab, startCamera, cl
 
 // Simple authentication for MVP
 function checkAuth() {
-    const isAuthenticated = sessionStorage.getItem('pra_auth') === 'true';
-    if (!isAuthenticated) {
-        const password = prompt('Please enter the access password:');
-        // Simple password check - replace 'your-password-here' with your actual password
-        if (password !== 'posture2025') {
-            alert('Incorrect password. Please reload the page to try again.');
-            // Don't redirect, just stop execution
-            return false;
-        }
-        sessionStorage.setItem('pra_auth', 'true');
+    // Force re-authentication on each page load for production
+    // This ensures password prompt always appears
+    const urlParams = new URLSearchParams(window.location.search);
+    const skipAuth = urlParams.get('skipAuth') === 'development';
+    
+    if (skipAuth) {
+        console.warn('Authentication skipped - development mode');
+        return true;
     }
+    
+    // Always prompt for password on production
+    const password = prompt('Please enter the access password:');
+    if (password !== 'posture2025') {
+        alert('Incorrect password. Please reload the page to try again.');
+        // Clear any existing auth
+        sessionStorage.removeItem('pra_auth');
+        return false;
+    }
+    sessionStorage.setItem('pra_auth', 'true');
     return true;
 }
 

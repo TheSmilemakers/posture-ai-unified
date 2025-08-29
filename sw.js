@@ -3,7 +3,7 @@
  * Enables offline functionality and caching
  */
 
-const CACHE_NAME = 'posture-ai-v1.0.0';
+const CACHE_NAME = 'posture-ai-v1.0.1'; // Bumped version to force cache refresh
 const urlsToCache = [
     './',
     './index.html',
