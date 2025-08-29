@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Integration Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; font-size: 1.2rem; }
+        button {
+            background: #4A90E2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover { background: #357ABD; }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Backend Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Database Connection</h2>
+        <button onclick="testConnection()">Test Connection</button>
+        <div id="connection-status" class="status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Create Test Patient</h2>
+        <button onclick="createTestPatient()">Create Patient</button>
+        <div id="patient-status" class="status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Create Assessment</h2>
+        <button onclick="createTestAssessment()">Create Assessment</button>
+        <div id="assessment-status" class="status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Save Analysis Results</h2>
+        <button onclick="saveTestResults()">Save Results</button>
+        <div id="results-status" class="status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Complete Workflow Test</h2>
+        <button onclick="testCompleteWorkflow()">Run Complete Test</button>
+        <div id="workflow-status" class="status"></div>
+    </div>
+
+    <script type="module">
+        import { 
+            testDatabaseConnection,
+            createPatient,
+            createAssessment,
+            storeAnalysisResults,
+            saveCompleteAssessment
+        } from './assets/js/database-service.js';
+
+        // Make functions available globally
+        window.testConnection = async () => {
+            const status = document.getElementById('connection-status');
+            try {
+                status.textContent = 'Testing...';
+                status.className = 'status info';
+                
+                const result = await testDatabaseConnection();
+                status.textContent = '✅ Database connected!\n' + JSON.stringify(result, null, 2);
+                status.className = 'status success';
+            } catch (error) {
+                status.textContent = '❌ Connection failed: ' + error.message;
+                status.className = 'status error';
+            }
+        };
+
+        window.createTestPatient = async () => {
+            const status = document.getElementById('patient-status');
+            try {
+                status.textContent = 'Creating patient...';
+                status.className = 'status info';
+                
+                const patient = await createPatient({
+                    name: 'Test Patient ' + Date.now(),
+                    email: 'test@example.com',
+                    phone: '555-0123'
+                });
+                
+                window.testPatientId = patient.id;
+                status.textContent = '✅ Patient created!\n' + JSON.stringify(patient, null, 2);
+                status.className = 'status success';
+            } catch (error) {
+                status.textContent = '❌ Failed to create patient: ' + error.message;
+                status.className = 'status error';
+            }
+        };
+
+        window.createTestAssessment = async () => {
+            const status = document.getElementById('assessment-status');
+            try {
+                if (!window.testPatientId) {
+                    throw new Error('Please create a patient first');
+                }
+                
+                status.textContent = 'Creating assessment...';
+                status.className = 'status info';
+                
+                const assessment = await createAssessment(window.testPatientId, 'clinical');
+                
+                window.testAssessmentId = assessment.id;
+                status.textContent = '✅ Assessment created!\n' + JSON.stringify(assessment, null, 2);
+                status.className = 'status success';
+            } catch (error) {
+                status.textContent = '❌ Failed to create assessment: ' + error.message;
+                status.className = 'status error';
+            }
+        };
+
+        window.saveTestResults = async () => {
+            const status = document.getElementById('results-status');
+            try {
+                if (!window.testAssessmentId) {
+                    throw new Error('Please create an assessment first');
+                }
+                
+                status.textContent = 'Saving results...';
+                status.className = 'status info';
+                
+                const testData = {
+                    mode: 'clinical',
+                    photos: {
+                        front: {
+                            analysis: {
+                                headTilt: 5.2,
+                                shoulderLevel: 3.8
+                            }
+                        }
+                    }
+                };
+                
+                const result = await storeAnalysisResults(window.testAssessmentId, testData);
+                
+                status.textContent = '✅ Results saved!\n' + JSON.stringify(result, null, 2);
+                status.className = 'status success';
+            } catch (error) {
+                status.textContent = '❌ Failed to save results: ' + error.message;
+                status.className = 'status error';
+            }
+        };
+
+        window.testCompleteWorkflow = async () => {
+            const status = document.getElementById('workflow-status');
+            try {
+                status.textContent = 'Running complete workflow test...\n';
+                status.className = 'status info';
+                
+                // Test complete assessment save (like the app does)
+                const assessmentData = {
+                    mode: 'clinical',
+                    clientInfo: {
+                        name: 'Complete Test ' + Date.now(),
+                        email: 'complete@test.com'
+                    },
+                    photos: {
+                        front: {
+                            analysis: { headTilt: 5, shoulderLevel: 2 }
+                        },
+                        side: {
+                            analysis: { forwardHead: 15, kyphosis: 45 }
+                        }
+                    }
+                };
+                
+                const result = await saveCompleteAssessment(assessmentData);
+                
+                status.textContent = '✅ Complete workflow successful!\n' + 
+                    'Patient ID: ' + result.patientId + '\n' +
+                    'Assessment ID: ' + result.assessmentId + '\n\n' +
+                    JSON.stringify(result, null, 2);
+                status.className = 'status success';
+            } catch (error) {
+                status.textContent = '❌ Workflow test failed: ' + error.message;
+                status.className = 'status error';
+            }
+        };
+
+        // Test connection on load
+        window.addEventListener('load', () => {
+            window.testConnection();
+        });
+    </script>
+</body>
+</html>

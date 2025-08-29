@@ -1561,3 +1561,55 @@ a:hover {
         grid-template-columns: repeat(3, 1fr);
     }
 }
+
+/* Patient Selection Styles */
+.patient-selection {
+    padding: var(--spacing-lg);
+    background: var(--color-bg-primary);
+    min-height: calc(100vh - 80px);
+}
+
+.patient-selection .container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.patient-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    margin-top: var(--spacing-xl);
+}
+
+.patient-card {
+    background: var(--color-bg-secondary);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.patient-card h3 {
+    margin-bottom: var(--spacing-md);
+    color: var(--color-primary);
+}
+
+.patient-card .form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.patient-card .btn {
+    width: 100%;
+    margin-top: var(--spacing-md);
+}
+
+/* Dark mode patient selection */
+@media (prefers-color-scheme: dark) {
+    .patient-selection {
+        background: var(--color-bg-primary);
+    }
+    
+    .patient-card {
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
+    }
+}

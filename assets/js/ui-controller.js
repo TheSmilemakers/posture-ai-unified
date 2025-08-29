@@ -14,6 +14,13 @@ import {
     getSeverity 
 } from './analysis.js';
 import { formatNumber, downloadJSON, generatePDF } from './utils.js';
+import { 
+    createPatient,
+    createAssessment,
+    storeAnalysisResults,
+    saveCompleteAssessment,
+    testDatabaseConnection
+} from './database-service.js';
 
 // Global UI State
 export const UIState = {
@@ -81,6 +88,27 @@ export function initializeUI() {
             document.querySelector('.clinical-disclaimer').classList.add('hidden');
         });
     }
+    
+    // Test database connection on startup
+    testDatabaseOnStartup();
+}
+
+/**
+ * Test database connection on startup
+ */
+async function testDatabaseOnStartup() {
+    try {
+        console.log('Testing database connection...');
+        const result = await testDatabaseConnection();
+        if (result.connected) {
+            console.log('✅ Database connected successfully:', result);
+            // Optional: Show a subtle indicator that backend is connected
+        }
+    } catch (error) {
+        console.warn('⚠️ Database connection test failed:', error);
+        console.log('App will continue with local-only functionality');
+        // Don't show an error to user - app works without backend
+    }
 }
 
 /**
@@ -89,48 +117,17 @@ export function initializeUI() {
  */
 export function selectMode(mode) {
     try {
-        showLoading('Initializing analysis engine...');
-        
         UIState.currentMode = mode;
         
         // Hide mode selection
         document.getElementById('mode-selection').style.display = 'none';
         
-        // Show main content
-        const mainContent = document.getElementById('main-content');
-        mainContent.classList.add('active');
-        
-        // Update navigation title
-        const titles = {
-            'quick': 'Quick Assessment',
-            'clinical': 'Clinical Assessment',
-            'advanced': 'Advanced Biomechanics'
-        };
-        document.getElementById('mode-title').textContent = titles[mode];
-        
-        // Show appropriate mode content
-        document.querySelectorAll('.mode-content').forEach(content => {
-            content.classList.add('hidden');
-        });
-        document.getElementById(`${mode}-mode`).classList.remove('hidden');
-        
-        // Initialize MediaPipe with error handling
-        if (!UIState.pose) {
-            UIState.pose = initializePose(mode);
-        }
-        
-        // Show first tab for clinical mode
-        if (mode === 'clinical') {
-            showTab('clinical', 'client-info');
-        }
-        
-        hideLoading();
-        showNotification(`${titles[mode]} mode activated`, 'success');
+        // Show patient selection
+        document.getElementById('patient-selection').classList.remove('hidden');
         
     } catch (error) {
-        console.error('Error initializing mode:', error);
-        hideLoading();
-        showNotification('Failed to initialize analysis mode. Please try again.', 'error');
+        console.error('Error selecting mode:', error);
+        showNotification('Error selecting mode. Please try again.', 'error');
     }
 }
 
@@ -1176,6 +1173,23 @@ function handleGlobalClick(event) {
                 });
                 break;
                 
+            case 'create-patient':
+                setButtonState(button, 'processing');
+                handleCreatePatient().then(() => {
+                    setButtonState(button, 'success');
+                }).catch(() => {
+                    setButtonState(button, 'error');
+                });
+                break;
+                
+            case 'skip-patient':
+                handleSkipPatient();
+                break;
+                
+            case 'back-to-modes':
+                backToModeSelection();
+                break;
+                
             default:
                 console.warn('Unknown action:', action);
         }
@@ -1360,18 +1374,50 @@ export function generateClinicalReport() {
 /**
  * Export biomechanics data
  */
-export function exportBiomechanics() {
-    const exportData = {
-        timestamp: new Date().toISOString(),
-        mode: 'advanced',
-        analysisData: UIState.analysisData.advanced,
-        metadata: {
-            version: '1.0',
-            clinic: 'Two Tonys Treatment Clinic'
+export async function exportBiomechanics() {
+    try {
+        showLoading('Exporting biomechanics data...');
+        
+        const exportData = {
+            timestamp: new Date().toISOString(),
+            mode: 'advanced',
+            analysisData: UIState.analysisData.advanced,
+            metadata: {
+                version: '1.0',
+                clinic: 'Two Tonys Treatment Clinic'
+            }
+        };
+        
+        // Download JSON file
+        downloadJSON(exportData, `biomechanics-${Date.now()}.json`);
+        
+        // Also save to database if connected
+        try {
+            const dbResult = await saveCompleteAssessment({
+                ...exportData,
+                clientInfo: {
+                    name: 'Anonymous Patient - Advanced Analysis'
+                }
+            });
+            console.log('Biomechanics saved to database:', dbResult);
+            showNotification('Biomechanics data exported and saved to database!', 'success');
+            
+            // Store the assessment ID for reference
+            UIState.currentAssessmentId = dbResult.assessmentId;
+            UIState.currentPatientId = dbResult.patientId;
+            
+        } catch (dbError) {
+            console.warn('Database save failed, but local export succeeded:', dbError);
+            showNotification('Data exported locally (database offline)', 'warning');
         }
-    };
-    
-    downloadJSON(exportData, `biomechanics-${Date.now()}.json`);
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error exporting biomechanics:', error);
+        hideLoading();
+        showNotification('Error exporting data. Please try again.', 'error');
+    }
 }
 
 /**
@@ -1580,8 +1626,10 @@ function updateExerciseSummary(phase) {
 /**
  * Save clinical assessment data
  */
-function saveClinicalAssessment() {
+async function saveClinicalAssessment() {
     try {
+        showLoading('Saving assessment...');
+        
         // Collect any remaining data
         if (UIState.currentTab) {
             collectCurrentTabData(UIState.currentTab);
@@ -1597,6 +1645,8 @@ function saveClinicalAssessment() {
             mode: 'clinical',
             version: '1.0',
             clinic: 'Two Tonys Treatment Clinic',
+            patientId: UIState.currentPatientId,
+            patientName: UIState.currentPatientName,
             ...UIState.analysisData.clinical
         };
         
@@ -1605,10 +1655,26 @@ function saveClinicalAssessment() {
         localStorage.setItem('last-clinical-assessment', JSON.stringify(assessmentData));
         downloadJSON(assessmentData, filename);
         
-        showNotification('Clinical assessment saved successfully!', 'success');
+        // Also save to database if connected
+        try {
+            const dbResult = await saveCompleteAssessment(assessmentData);
+            console.log('Assessment saved to database:', dbResult);
+            showNotification('Clinical assessment saved successfully to database!', 'success');
+            
+            // Store the assessment ID for reference
+            UIState.currentAssessmentId = dbResult.assessmentId;
+            UIState.currentPatientId = dbResult.patientId;
+            
+        } catch (dbError) {
+            console.warn('Database save failed, but local save succeeded:', dbError);
+            showNotification('Assessment saved locally (database offline)', 'warning');
+        }
+        
+        hideLoading();
         
     } catch (error) {
         console.error('Error saving clinical assessment:', error);
+        hideLoading();
         showNotification('Error saving assessment. Please try again.', 'error');
     }
 }
@@ -1643,14 +1709,190 @@ async function generateClinicalPDFReport() {
 /**
  * Save quick results
  */
-export function saveQuickResults() {
-    const data = {
-        timestamp: new Date().toISOString(),
-        score: document.getElementById('quick-score').textContent,
-        metrics: UIState.analysisData.quick,
-        mode: 'quick'
-    };
+export async function saveQuickResults() {
+    try {
+        showLoading('Saving results...');
+        
+        const data = {
+            timestamp: new Date().toISOString(),
+            score: document.getElementById('quick-score').textContent,
+            metrics: UIState.analysisData.quick,
+            mode: 'quick'
+        };
+        
+        // Download JSON file
+        downloadJSON(data, `quick-analysis-${Date.now()}.json`);
+        
+        // Also save to database if connected
+        try {
+            const dbResult = await saveCompleteAssessment({
+                ...data,
+                results: UIState.analysisData.quick,
+                clientInfo: {
+                    name: 'Anonymous Patient - Quick Analysis'
+                }
+            });
+            console.log('Quick analysis saved to database:', dbResult);
+            showNotification('Results saved to database!', 'success');
+            
+            // Store the assessment ID for reference
+            UIState.currentAssessmentId = dbResult.assessmentId;
+            UIState.currentPatientId = dbResult.patientId;
+            
+        } catch (dbError) {
+            console.warn('Database save failed, but local save succeeded:', dbError);
+            showNotification('Results saved locally (database offline)', 'warning');
+        }
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error saving quick results:', error);
+        hideLoading();
+        showNotification('Error saving results. Please try again.', 'error');
+    }
+}
+
+/**
+ * Handle patient creation
+ */
+async function handleCreatePatient() {
+    try {
+        const name = document.getElementById('new-patient-name').value.trim();
+        const email = document.getElementById('new-patient-email').value.trim();
+        const phone = document.getElementById('new-patient-phone').value.trim();
+        
+        if (!name) {
+            showNotification('Please enter a patient name', 'error');
+            throw new Error('Name required');
+        }
+        
+        showLoading('Creating patient record...');
+        
+        const patient = await createPatient({
+            name,
+            email,
+            phone
+        });
+        
+        console.log('Patient created:', patient);
+        UIState.currentPatientId = patient.id;
+        UIState.currentPatientName = patient.name;
+        
+        hideLoading();
+        showNotification(`Patient "${patient.name}" created successfully!`, 'success');
+        
+        // Continue to the selected mode
+        continueToMode();
+        
+    } catch (error) {
+        console.error('Error creating patient:', error);
+        hideLoading();
+        showNotification('Failed to create patient. ' + (error.message || 'Please try again.'), 'error');
+        throw error;
+    }
+}
+
+/**
+ * Handle anonymous patient flow
+ */
+function handleSkipPatient() {
+    UIState.currentPatientId = null;
+    UIState.currentPatientName = 'Anonymous';
+    showNotification('Continuing with anonymous assessment', 'info');
+    continueToMode();
+}
+
+/**
+ * Continue to the selected mode after patient selection
+ */
+function continueToMode() {
+    try {
+        showLoading('Initializing analysis engine...');
+        
+        // Hide patient selection
+        document.getElementById('patient-selection').classList.add('hidden');
+        
+        // Show main content
+        const mainContent = document.getElementById('main-content');
+        mainContent.classList.add('active');
+        
+        // Update navigation title
+        const titles = {
+            'quick': 'Quick Posture Check',
+            'clinical': 'Clinical Assessment',
+            'advanced': 'Advanced Biomechanics'
+        };
+        
+        const navTitle = document.querySelector('.nav-title');
+        if (navTitle) navTitle.textContent = titles[UIState.currentMode];
+        
+        // Show appropriate content
+        showModeContent(UIState.currentMode);
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error continuing to mode:', error);
+        hideLoading();
+        showNotification('Error initializing mode. Please refresh and try again.', 'error');
+    }
+}
+
+/**
+ * Return to mode selection
+ */
+function backToModeSelection() {
+    document.getElementById('patient-selection').classList.add('hidden');
+    document.getElementById('mode-selection').style.display = 'block';
     
-    downloadJSON(data, `quick-analysis-${Date.now()}.json`);
-    showNotification('Results saved!', 'success');
+    // Clear form
+    document.getElementById('new-patient-name').value = '';
+    document.getElementById('new-patient-email').value = '';
+    document.getElementById('new-patient-phone').value = '';
+    
+    // Reset state
+    UIState.currentMode = null;
+    UIState.currentPatientId = null;
+    UIState.currentPatientName = null;
+}
+
+/**
+ * Show content for a specific mode
+ * @param {string} mode - Selected mode
+ */
+function showModeContent(mode) {
+    try {
+        // Show appropriate mode content
+        document.querySelectorAll('.mode-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+        document.getElementById(`${mode}-mode`).classList.remove('hidden');
+        
+        // Update mode title if exists
+        const modeTitle = document.getElementById('mode-title');
+        if (modeTitle) {
+            const titles = {
+                'quick': 'Quick Assessment',
+                'clinical': 'Clinical Assessment',
+                'advanced': 'Advanced Biomechanics'
+            };
+            modeTitle.textContent = titles[mode];
+        }
+        
+        // Initialize MediaPipe with error handling
+        if (!UIState.pose) {
+            UIState.pose = initializePose(mode);
+        }
+        
+        // Show first tab for clinical mode
+        if (mode === 'clinical') {
+            showTab('clinical', 'client-info');
+        }
+        
+        showNotification(`${mode.charAt(0).toUpperCase() + mode.slice(1)} mode activated`, 'success');
+        
+    } catch (error) {
+        console.error('Error showing mode content:', error);
+        showNotification('Error loading mode. Please try again.', 'error');
+    }
 }

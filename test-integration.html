@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integration Test - Posture AI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        .success {
+            color: #48bb78;
+            background: #f0fff4;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .error {
+            color: #e53e3e;
+            background: #fff5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        pre {
+            background: #f7fafc;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Frontend-Backend Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>Full Integration Test</h2>
+        <p>This tests the complete flow: Create patient → Create assessment → Store analysis</p>
+        <button onclick="runFullIntegrationTest()">Run Full Test</button>
+        <div id="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Clinical Save</h2>
+        <p>Simulates saving a clinical assessment with patient creation</p>
+        <button onclick="testClinicalSave()">Test Clinical Save</button>
+        <div id="clinical-result"></div>
+    </div>
+
+    <script type="module">
+        import { 
+            createPatient,
+            createAssessment,
+            storeAnalysisResults,
+            saveCompleteAssessment,
+            testDatabaseConnection
+        } from './assets/js/database-service.js';
+
+        // Make functions available globally for onclick handlers
+        window.runFullIntegrationTest = async function() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = 'Running integration test...';
+            
+            try {
+                // Step 1: Test connection
+                console.log('Step 1: Testing database connection...');
+                const connectionTest = await testDatabaseConnection();
+                console.log('Connection test:', connectionTest);
+                
+                // Step 2: Create patient
+                console.log('Step 2: Creating patient...');
+                const patient = await createPatient({
+                    name: 'Integration Test Patient',
+                    email: 'test@integration.com'
+                });
+                console.log('Patient created:', patient);
+                
+                // Step 3: Create assessment
+                console.log('Step 3: Creating assessment...');
+                const assessment = await createAssessment(patient.id, 'clinical');
+                console.log('Assessment created:', assessment);
+                
+                // Step 4: Store analysis results
+                console.log('Step 4: Storing analysis results...');
+                const analysisData = {
+                    mode: 'clinical',
+                    photos: {
+                        front: {
+                            analysis: {
+                                headTilt: 5.2,
+                                shoulderLevel: -3.1
+                            }
+                        },
+                        side: {
+                            analysis: {
+                                forwardHeadAngle: 15.8,
+                                thoracicKyphosis: 42.3
+                            }
+                        }
+                    }
+                };
+                
+                const storeResult = await storeAnalysisResults(assessment.id, analysisData);
+                console.log('Analysis stored:', storeResult);
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        ✅ Full integration test completed successfully!
+                        <pre>${JSON.stringify({
+                            patient: { id: patient.id, code: patient.patientCode },
+                            assessment: { id: assessment.id },
+                            measurements: storeResult.measurementCount
+                        }, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Integration test failed:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Integration test failed: ${error.message}
+                    </div>
+                `;
+            }
+        };
+
+        window.testClinicalSave = async function() {
+            const resultDiv = document.getElementById('clinical-result');
+            resultDiv.innerHTML = 'Testing clinical save...';
+            
+            try {
+                const assessmentData = {
+                    mode: 'clinical',
+                    patientName: 'Clinical Test Patient',
+                    timestamp: new Date().toISOString(),
+                    clientInfo: {
+                        name: 'Clinical Test Patient',
+                        email: 'clinical@test.com',
+                        phone: '123-456-7890',
+                        dateOfBirth: '1990-01-01'
+                    },
+                    photos: {
+                        front: {
+                            analysis: {
+                                headTilt: 3.2,
+                                shoulderLevel: -2.1,
+                                hipShift: 5.5
+                            }
+                        },
+                        side: {
+                            analysis: {
+                                forwardHeadAngle: 12.5,
+                                thoracicKyphosis: 38.2,
+                                lumbarLordosis: 45.8
+                            }
+                        },
+                        back: {
+                            analysis: {
+                                spinalAlignment: 2.3,
+                                scapularAsymmetry: 8.1
+                            }
+                        }
+                    },
+                    overallScore: 82
+                };
+                
+                const result = await saveCompleteAssessment(assessmentData);
+                console.log('Clinical save result:', result);
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        ✅ Clinical save completed successfully!
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Clinical save test failed:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Clinical save failed: ${error.message}
+                    </div>
+                `;
+            }
+        };
+    </script>
+</body>
+</html>

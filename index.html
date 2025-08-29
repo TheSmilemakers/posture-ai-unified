@@ -104,6 +104,42 @@
             </div>
         </div>
 
+        <!-- Patient Selection (Hidden until mode selected) -->
+        <div id="patient-selection" class="patient-selection hidden">
+            <div class="container">
+                <h2>Patient Information</h2>
+                <p>Select an existing patient or create a new one</p>
+                
+                <div class="patient-options">
+                    <!-- New Patient -->
+                    <div class="patient-card">
+                        <h3>New Patient</h3>
+                        <div class="form-group">
+                            <input type="text" id="new-patient-name" class="form-input" placeholder="Patient Name" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="email" id="new-patient-email" class="form-input" placeholder="Email (optional)">
+                        </div>
+                        <div class="form-group">
+                            <input type="tel" id="new-patient-phone" class="form-input" placeholder="Phone (optional)">
+                        </div>
+                        <button class="btn btn-primary" data-action="create-patient">Create Patient & Continue</button>
+                    </div>
+                    
+                    <!-- Anonymous Patient -->
+                    <div class="patient-card">
+                        <h3>Anonymous Assessment</h3>
+                        <p>Proceed without creating a patient record</p>
+                        <button class="btn btn-secondary" data-action="skip-patient">Continue Anonymously</button>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" data-action="back-to-modes">Back to Mode Selection</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Content Area (Hidden Initially) -->
         <div id="main-content" class="main-content">
             <!-- Navigation Bar -->
