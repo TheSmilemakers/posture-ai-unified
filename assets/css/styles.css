@@ -4,6 +4,41 @@
  */
 
 /* ===========================
+   Font Face Declarations
+   =========================== */
+@font-face {
+    font-family: 'Sansation';
+    src: url('./Sansation/Sansation-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Sansation';
+    src: url('./Sansation/Sansation-Light.ttf') format('truetype');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Sansation';
+    src: url('./Sansation/Sansation-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Sansation';
+    src: url('./Sansation/Sansation-Italic.ttf') format('truetype');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* ===========================
    Clinical Disclaimer Styles
    =========================== */
 .clinical-disclaimer {
@@ -58,7 +93,9 @@
 }
 
 .btn-warning {
-    background: #f56565;
+    background: rgba(245, 101, 101, 0.5); /* 50% opacity red */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: white;
     padding: 12px 24px;
     border: none;
@@ -106,11 +143,11 @@
     --color-bg-tertiary: #FFFFFF;       /* Pure white for inputs */
     --color-bg-inverse: #57564F;        /* Dark backgrounds */
     
-    /* Semi-transparent variants for glassmorphism - all 20% opacity */
-    --color-bg-primary-alpha: rgba(248, 243, 206, 0.2);
-    --color-bg-secondary-alpha: rgba(221, 218, 208, 0.2);
-    --color-bg-tertiary-alpha: rgba(255, 255, 255, 0.2);
-    --color-bg-card-glass: rgba(248, 243, 206, 0.2); /* 20% opacity for all cards */
+    /* Semi-transparent variants for glassmorphism - all 50% opacity */
+    --color-bg-primary-alpha: rgba(248, 243, 206, 0.5);
+    --color-bg-secondary-alpha: rgba(221, 218, 208, 0.5);
+    --color-bg-tertiary-alpha: rgba(255, 255, 255, 0.5);
+    --color-bg-card-glass: rgba(248, 243, 206, 0.5); /* 50% opacity for all cards */
     
     /* Interactive states */
     --color-primary: #57564F;           /* Primary actions */
@@ -150,7 +187,7 @@
     --spacing-2xl: clamp(2rem, 1.5rem + 2.5vw, 3rem);
     
     /* Typography - Fluid Type Scale */
-    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-family: 'Sansation', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-size-sm: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
     --font-size-base: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
     --font-size-lg: clamp(1rem, 0.925rem + 0.375vw, 1.125rem);
@@ -195,11 +232,11 @@
         --color-bg-tertiary: light-dark(#FFFFFF, #57564F);
         --color-bg-inverse: light-dark(#57564F, #F8F3CE);
         
-        /* Semi-transparent variants - all 20% opacity */
-        --color-bg-primary-alpha: light-dark(rgba(248, 243, 206, 0.2), rgba(42, 42, 39, 0.2));
-        --color-bg-secondary-alpha: light-dark(rgba(221, 218, 208, 0.2), rgba(58, 58, 54, 0.2));
-        --color-bg-tertiary-alpha: light-dark(rgba(255, 255, 255, 0.2), rgba(87, 86, 79, 0.2));
-        --color-bg-card-glass: light-dark(rgba(248, 243, 206, 0.2), rgba(58, 58, 54, 0.2));
+        /* Semi-transparent variants - all 50% opacity */
+        --color-bg-primary-alpha: light-dark(rgba(248, 243, 206, 0.5), rgba(42, 42, 39, 0.5));
+        --color-bg-secondary-alpha: light-dark(rgba(221, 218, 208, 0.5), rgba(58, 58, 54, 0.5));
+        --color-bg-tertiary-alpha: light-dark(rgba(255, 255, 255, 0.5), rgba(87, 86, 79, 0.5));
+        --color-bg-card-glass: light-dark(rgba(248, 243, 206, 0.5), rgba(58, 58, 54, 0.5));
         
         /* Interactive states */
         --color-primary: light-dark(#57564F, #F8F3CE);
@@ -399,7 +436,7 @@ a:hover {
     padding-inline: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
     
     /* Glassmorphism effect */
-    background: rgba(248, 243, 206, 0.2); /* 20% opacity */
+    background: rgba(248, 243, 206, 0.5); /* 50% opacity */
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     
@@ -433,7 +470,7 @@ a:hover {
 /* Dark mode glassmorphism */
 @media (prefers-color-scheme: dark) {
     .app-header {
-        background: rgba(42, 42, 39, 0.2); /* 20% opacity */
+        background: rgba(42, 42, 39, 0.5); /* 50% opacity */
         border-bottom: 1px solid rgba(248, 243, 206, 0.15);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
     }
@@ -441,12 +478,12 @@ a:hover {
 
 /* Manual theme overrides */
 html[data-theme="light"] .app-header {
-    background: rgba(248, 243, 206, 0.2); /* 20% opacity */
+    background: rgba(248, 243, 206, 0.5); /* 50% opacity */
     border-bottom: 1px solid rgba(87, 86, 79, 0.15);
 }
 
 html[data-theme="dark"] .app-header {
-    background: rgba(42, 42, 39, 0.2); /* 20% opacity */
+    background: rgba(42, 42, 39, 0.5); /* 50% opacity */
     border-bottom: 1px solid rgba(248, 243, 206, 0.15);
 }
 
@@ -975,7 +1012,7 @@ body.no-background .background-toggle:hover {
    =========================== */
 .btn {
     padding: max(0.625rem, 2.5vh) clamp(1rem, 5vw, 2rem);
-    background: rgba(87, 86, 79, 0.2); /* 20% opacity */
+    background: rgba(87, 86, 79, 0.5); /* 50% opacity */
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     color: var(--color-text-primary);
@@ -1115,7 +1152,7 @@ body.no-background .background-toggle:hover {
 }
 
 .score-card {
-    background: rgba(87, 86, 79, 0.2); /* 20% opacity */
+    background: rgba(87, 86, 79, 0.5); /* 50% opacity */
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     color: var(--color-text-primary);
@@ -1327,7 +1364,7 @@ body.no-background .background-toggle:hover {
    Info Cards
    =========================== */
 .info-card {
-    background: rgba(248, 243, 206, 0.2); /* 20% opacity */
+    background: rgba(248, 243, 206, 0.5); /* 50% opacity */
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-radius: var(--border-radius);
@@ -2145,10 +2182,13 @@ body.no-background .app-container::before {
 }
 
 .patient-card {
-    background: var(--color-bg-secondary);
+    background: var(--color-bg-card-glass); /* Use consistent 50% opacity */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     padding: var(--spacing-lg);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .patient-card h3 {

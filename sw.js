@@ -3,7 +3,7 @@
  * Enables offline functionality and caching
  */
 
-const CACHE_NAME = 'posture-ai-v1.0.5'; // Remove all backgrounds, 20% opacity UI
+const CACHE_NAME = 'posture-ai-v1.0.6'; // 50% opacity UI with Sansation font
 const urlsToCache = [
     './',
     './index.html',
@@ -16,6 +16,10 @@ const urlsToCache = [
     './manifest.json',
     './assets/img/icon-192.png',
     './assets/img/icon-512.png',
+    './assets/css/Sansation/Sansation-Regular.ttf',
+    './assets/css/Sansation/Sansation-Light.ttf',
+    './assets/css/Sansation/Sansation-Bold.ttf',
+    './assets/css/Sansation/Sansation-Italic.ttf',
     'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js',
     'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
     'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
