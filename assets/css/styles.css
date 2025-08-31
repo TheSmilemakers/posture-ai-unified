@@ -154,19 +154,23 @@ html[data-theme="dark"]{ color-scheme:dark !important; }
 
 /* Base typography */
 html{
-  min-height:100vh;
-  /* iOS viewport fix */
-  min-height:-webkit-fill-available;
+  height:100%;
+  /* Prevent iOS bounce on html */
+  overflow:hidden;
+  position:relative;
 }
 body{
   font-family:var(--font-family);
   font-size:var(--font-size-base);
   line-height:1.6;
   color:var(--color-text-primary);
-  min-height:100vh;
-  min-height:-webkit-fill-available;
+  height:100%;
   margin:0;
   text-align:center;
+  /* Fix body to prevent double scroll contexts */
+  position:fixed;
+  width:100%;
+  overflow:hidden;
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility;
   transition:var(--transition-theme);
 }
@@ -178,13 +182,20 @@ a:hover{opacity:.8}
 
 /* App container background */
 .app-container{
+  /* Make app-container the primary scroll container */
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
   width:100%;
-  min-height:100vh;
-  min-height:-webkit-fill-available;
-  position:relative;
-  transition:var(--transition-theme);
+  height:100%;
   overflow-y:auto;
+  overflow-x:hidden;
   -webkit-overflow-scrolling:touch; /* iOS smooth scrolling */
+  overscroll-behavior-y:none; /* Prevent bounce on iOS */
+  -webkit-transform:translateZ(0); /* Force hardware acceleration */
+  transition:var(--transition-theme);
 }
 .app-container::before{
   content:'';position:absolute;inset:0;background-image:url('../img/Posture_bg.png');
@@ -366,7 +377,8 @@ html[data-theme="dark"] .app-header{background:rgba(42,42,39,.5)}
 .notification-warning{background:rgba(184,121,0,.95);color:#fff;border-left-color:var(--warning-color)}
 
 /* Error/clinical disclaimers as proper modals */
-body.modal-open{overflow:hidden}
+/* Removed to prevent scrolling issues - modal-open class not used in JS */
+/* body.modal-open{overflow:hidden} */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);display:none;z-index:var(--z-modal)}
 .modal[open],.modal.is-open{display:grid;place-items:center}
 .modal__panel{background:var(--color-bg-tertiary);color:var(--color-text-primary);border-radius:var(--border-radius-lg);box-shadow:var(--shadow-xl);width:min(640px,92vw);padding:var(--spacing-xl)}
@@ -486,7 +498,22 @@ body.modal-open{overflow:hidden}
   }
 }
 @media (min-width:1024px){
-  .app-container{max-width:1400px;margin:0 auto;box-shadow:var(--shadow-xl)}
+  /* Reset fixed positioning for desktop */
+  .app-container{
+    position:relative;
+    max-width:1400px;
+    margin:0 auto;
+    box-shadow:var(--shadow-xl);
+    height:auto;
+    min-height:100vh;
+    overflow-y:visible;
+  }
+  html, body {
+    height:auto;
+    min-height:100vh;
+    position:relative;
+    overflow:auto;
+  }
   .main-content.active{display:grid;grid-template-columns:250px 1fr}
   .tab-nav{flex-direction:column;height:100%;background:var(--light-bg);padding:var(--spacing-lg);position:sticky;top:calc(var(--header-h) + 66px)}
   .tab-btn{width:100%;justify-content:flex-start}
@@ -499,6 +526,46 @@ body.modal-open{overflow:hidden}
   .app-container{box-shadow:none}
   .app-container::before{display:none}
   .mode-card,.photo-card,.info-card,.score-card{background:#fff !important;border:1px solid #000 !important;box-shadow:none !important}
+}
+
+/* iOS-specific optimizations for smooth scrolling */
+@supports (-webkit-touch-callout: none) {
+  /* iOS only styles */
+  .app-container {
+    /* Prevent elastic scrolling */
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    /* Fix for iOS 13+ */
+    scroll-behavior: smooth;
+  }
+  
+  /* Ensure content can be scrolled */
+  .mode-selection,
+  .patient-selection,
+  .main-content {
+    /* Add bottom padding for iOS home indicator */
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+}
+
+/* Additional mobile scroll fixes */
+@media (max-width: 768px) and (pointer: coarse) {
+  /* Touch devices */
+  .app-container {
+    /* Ensure scrolling works on all touch devices */
+    touch-action: pan-y;
+  }
+  
+  /* Prevent horizontal scrolling */
+  body,
+  .app-container {
+    overflow-x: hidden;
+  }
 }
 
 /* ========== Uploaded Images ========== */
