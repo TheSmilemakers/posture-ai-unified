@@ -1,11 +1,22 @@
 # Posture AI Project State - January 2025
 
+## 🔴 STRICT CODING RULEBOOK ENFORCEMENT
+**ALL work on this project MUST follow**: `/Users/rajan/Documents/Claude/STRICT-CODING-RULEBOOK.md`
+- NEVER ASSUME - ALWAYS VERIFY with actual code
+- Show exact file:line references for ALL claims
+- If you cannot show the code, DO NOT make the claim
+
 ## 🎯 Current Status: MVP 99% Complete
 
 ### Production Deployment
 - **Live URL**: https://posture.rajanmaher.com
 - **Password**: posture2025
 - **Status**: READY FOR CLINICAL TESTING
+
+### Critical Update (January 2025)
+- **Lesson Learned**: DEEP-ANALYSIS-FINDINGS.md contained false claims (now deleted)
+- **Resolution**: STRICT CODING RULEBOOK now mandatory for all work
+- **Verified**: All calibration functions EXIST in utils.js (lines 649-1145)
 
 ## 🏗️ Technical Architecture
 
