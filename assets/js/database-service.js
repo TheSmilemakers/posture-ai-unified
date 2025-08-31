@@ -22,10 +22,21 @@ const API_BASE = (() => {
 console.log('Database Service - API Base URL:', API_BASE);
 
 // Auth headers for all API calls
-const authHeaders = {
-    'Authorization': 'Bearer posture-api-2025',
-    'Content-Type': 'application/json'
+// TODO: For production, load API key from environment variable or secure configuration
+// SECURITY WARNING: Never commit API keys to source control
+const getAuthHeaders = () => {
+    // In production, this should come from a secure source
+    // For now, using a placeholder that should be replaced during deployment
+    const apiKey = window.POSTURE_API_KEY || 'Bearer posture-api-2025-REPLACE-IN-PRODUCTION';
+    
+    return {
+        'Authorization': apiKey,
+        'Content-Type': 'application/json'
+    };
 };
+
+// Use function to get headers dynamically
+const authHeaders = getAuthHeaders();
 
 // CRITICAL FIX 1: Correct unit assignment mapping (same as ui-controller.js)
 // Replaces incorrect conditional logic that assigned "mm" to percentage measurements

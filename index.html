@@ -2,10 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://localhost:* https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()">
     <!-- Dynamic Theme Color Meta Tags for Mobile Browser Chrome -->
     <meta name="theme-color" content="#2A2A27">
     <meta name="theme-color" content="#57564F" media="(prefers-color-scheme: light)">
@@ -140,7 +147,7 @@
             <div class="mode-grid">
                 <!-- Quick Assessment Mode -->
                 <div class="mode-card" data-mode="quick">
-                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Quick mode icon">
                         <!-- Mobile phone icon -->
                         <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
                         <line x1="12" y1="18" x2="12.01" y2="18"/>
@@ -159,7 +166,7 @@
 
                 <!-- Clinical Assessment Mode -->
                 <div class="mode-card" data-mode="clinical">
-                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Clinical assessment icon">
                         <!-- Medical cross icon -->
                         <path d="M9 2v7H2v6h7v7h6v-7h7V9h-7V2H9z"/>
                     </svg>
@@ -177,7 +184,7 @@
 
                 <!-- Advanced Biomechanics Mode -->
                 <div class="mode-card" data-mode="advanced">
-                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Advanced analysis icon">
                         <!-- Microscope icon -->
                         <path d="M5.5 18H8.5M8.5 18V14M8.5 14L3 8.5C2 7.5 2 6 3 5L5 3C6 2 7.5 2 8.5 3L14 8.5M8.5 14H14M14 8.5L16 10.5M14 8.5V4M22 21L18 17M11 17C11 19.7614 8.76142 22 6 22C3.23858 22 1 19.7614 1 17C1 14.2386 3.23858 12 6 12C8.76142 12 11 14.2386 11 17Z"/>
                     </svg>
@@ -258,7 +265,7 @@
                     <div class="camera-container mt-lg">
                         <video id="quick-camera" class="camera-view hidden" autoplay playsinline></video>
                         <canvas id="quick-canvas" class="pose-canvas"></canvas>
-                        <img id="quick-preview" class="uploaded-image hidden" />
+                        <img id="quick-preview" class="uploaded-image hidden" alt="Uploaded posture image for quick analysis" />
                     </div>
                     
                     <div class="action-buttons mt-lg">
@@ -442,7 +449,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                <img id="clinical-front-preview" class="uploaded-image hidden">
+                                <img id="clinical-front-preview" class="uploaded-image hidden" alt="Front view posture image for clinical assessment">
                                 <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
                             </div>
 
@@ -482,7 +489,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                <img id="clinical-side-preview" class="uploaded-image hidden">
+                                <img id="clinical-side-preview" class="uploaded-image hidden" alt="Side view posture image for clinical assessment">
                                 <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
                             </div>
 
@@ -522,7 +529,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                <img id="clinical-back-preview" class="uploaded-image hidden">
+                                <img id="clinical-back-preview" class="uploaded-image hidden" alt="Back view posture image for clinical assessment">
                                 <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
                             </div>
                         </div>
@@ -1048,7 +1055,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <img id="advanced-front-preview" class="uploaded-image hidden">
+                            <img id="advanced-front-preview" class="uploaded-image hidden" alt="Front view posture image for advanced biomechanical analysis">
                             <canvas id="advanced-front-canvas" class="pose-canvas"></canvas>
                         </div>
 
@@ -1088,7 +1095,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <img id="advanced-side-preview" class="uploaded-image hidden">
+                            <img id="advanced-side-preview" class="uploaded-image hidden" alt="Side view posture image for advanced biomechanical analysis">
                             <canvas id="advanced-side-canvas" class="pose-canvas"></canvas>
                         </div>
 
@@ -1128,7 +1135,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <img id="advanced-back-preview" class="uploaded-image hidden">
+                            <img id="advanced-back-preview" class="uploaded-image hidden" alt="Back view posture image for advanced biomechanical analysis">
                             <canvas id="advanced-back-canvas" class="pose-canvas"></canvas>
                         </div>
                     </div>

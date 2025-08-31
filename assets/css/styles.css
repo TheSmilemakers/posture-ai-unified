@@ -18,7 +18,7 @@
 
   /* Palette */
   --color-text-primary:#57564F;
-  --color-text-secondary:#6B6A64;
+  --color-text-secondary:#5C5B54; /* Darkened for WCAG AA compliance (4.5:1 contrast) */
   --color-text-tertiary:#57564F;
   --color-text-inverse:#F8F3CE;
 
@@ -98,7 +98,7 @@
 @supports (color: light-dark(black, white)){
   :root{
     --color-text-primary: light-dark(#57564F,#F8F3CE);
-    --color-text-secondary: light-dark(#6B6A64,#E6E1BD);
+    --color-text-secondary: light-dark(#5C5B54,#E6E1BD); /* Darkened for AA compliance */
     --color-text-tertiary: light-dark(#57564F,#DDDAD0);
     --color-text-inverse: light-dark(#F8F3CE,#57564F);
     --color-bg-primary: light-dark(#F8F3CE,#2A2A27);
@@ -162,6 +162,7 @@ body{
   overflow-x:hidden; text-align:center;
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility;
   transition:var(--transition-theme);
+  -webkit-overflow-scrolling:touch; /* Smooth scrolling on iOS */
 }
 h1,h2,h3,h4,h5,h6{font-weight:700;line-height:1.2;margin-bottom:var(--spacing-md)}
 h1{font-size:var(--font-size-3xl)} h2{font-size:var(--font-size-2xl)} h3{font-size:var(--font-size-xl)} h4{font-size:var(--font-size-lg)}
@@ -170,7 +171,7 @@ a{color:var(--color-link);text-decoration:underline;text-underline-offset:2px;tr
 a:hover{opacity:.8}
 
 /* App container background */
-.app-container{max-width:100%;min-height:100dvh;position:relative;transition:var(--transition-theme)}
+.app-container{max-width:100%;min-height:100dvh;position:relative;transition:var(--transition-theme);overflow-y:auto;-webkit-overflow-scrolling:touch}
 .app-container::before{
   content:'';position:absolute;inset:0;background-image:url('../img/Posture_bg.png');
   background-size:cover;background-position:center;background-repeat:no-repeat;opacity:.25;z-index:0;pointer-events:none
