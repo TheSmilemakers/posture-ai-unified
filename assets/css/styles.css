@@ -153,16 +153,20 @@ html[data-theme="light"]{ color-scheme:light !important; }
 html[data-theme="dark"]{ color-scheme:dark !important; }
 
 /* Base typography */
+html{
+  height:100%;
+}
 body{
   font-family:var(--font-family);
   font-size:var(--font-size-base);
   line-height:1.6;
   color:var(--color-text-primary);
-  min-height:100vh; min-height:100dvh;
-  overflow-x:hidden; text-align:center;
+  height:100%;
+  margin:0;
+  overflow:hidden; /* Prevent body scroll */
+  text-align:center;
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility;
   transition:var(--transition-theme);
-  -webkit-overflow-scrolling:touch; /* Smooth scrolling on iOS */
 }
 h1,h2,h3,h4,h5,h6{font-weight:700;line-height:1.2;margin-bottom:var(--spacing-md)}
 h1{font-size:var(--font-size-3xl)} h2{font-size:var(--font-size-2xl)} h3{font-size:var(--font-size-xl)} h4{font-size:var(--font-size-lg)}
@@ -171,7 +175,15 @@ a{color:var(--color-link);text-decoration:underline;text-underline-offset:2px;tr
 a:hover{opacity:.8}
 
 /* App container background */
-.app-container{max-width:100%;min-height:100dvh;position:relative;transition:var(--transition-theme);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.app-container{
+  width:100%;
+  height:100%;
+  position:relative;
+  transition:var(--transition-theme);
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch; /* iOS smooth scrolling */
+  overscroll-behavior:contain; /* Prevent scroll chaining */
+}
 .app-container::before{
   content:'';position:absolute;inset:0;background-image:url('../img/Posture_bg.png');
   background-size:cover;background-position:center;background-repeat:no-repeat;opacity:.25;z-index:0;pointer-events:none

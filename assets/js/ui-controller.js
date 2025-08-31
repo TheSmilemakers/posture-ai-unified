@@ -304,10 +304,14 @@ export function backToModeSelection() {
     // Clean up MediaPipe
     if (UIState.pose) {
         try {
-            UIState.pose.close();
+            // Close the pose instance
+            if (typeof UIState.pose.close === 'function') {
+                UIState.pose.close();
+            }
             UIState.pose = null;
         } catch (error) {
             console.warn('Error closing MediaPipe:', error);
+            UIState.pose = null; // Ensure it's cleared even on error
         }
     }
     
@@ -761,9 +765,9 @@ export async function analyzePosture(mode) {
             if (mode === 'advanced' && !UIState.enhancedDetector) {
                 UIState.enhancedDetector = new EnhancedPoseDetector();
                 await UIState.enhancedDetector.initialize(mode);
-                UIState.pose = UIState.enhancedDetector;
+                UIState.pose = UIState.enhancedDetector.pose; // Get the actual pose object
             } else {
-                UIState.pose = initializePose(mode);
+                UIState.pose = initializePose(mode); // No await needed - synchronous!
             }
         }
         
@@ -821,7 +825,12 @@ export async function analyzePosture(mode) {
             }
         });
         
-        await UIState.pose.send({image: imageSource});
+        // Send image to the appropriate handler
+        if (UIState.enhancedDetector && mode === 'advanced') {
+            await UIState.enhancedDetector.send({image: imageSource});
+        } else {
+            await UIState.pose.send({image: imageSource});
+        }
         await analysisPromise;
         
     } catch (error) {
@@ -1021,9 +1030,7 @@ async function performAdvancedAnalysis() {
         // Initialize MediaPipe if needed
         if (!UIState.pose) {
             showLoading('Initializing analysis engine...');
-            UIState.pose = initializePose('advanced');
-            // Wait a bit for MediaPipe to initialize
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            UIState.pose = initializePose('advanced'); // No await needed - synchronous!
         }
         
         // Process each view with progress updates

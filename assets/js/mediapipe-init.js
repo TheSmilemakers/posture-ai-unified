@@ -244,64 +244,51 @@ export class EnhancedPoseDetector {
 /**
  * Initialize MediaPipe Pose with enhanced error handling and configuration
  * @param {string} mode - Analysis mode ('quick', 'clinical', 'advanced')
- * @returns {Promise<Pose>} Promise that resolves to configured pose instance
+ * @returns {Pose} Configured pose instance ready for use
  */
 export function initializePose(mode = 'quick') {
-    return new Promise((resolve, reject) => {
-        try {
-            // Check if MediaPipe is available
-            if (typeof Pose === 'undefined') {
-                throw new Error('MediaPipe Pose library not loaded');
-            }
-            
-            const pose = new Pose({
-                locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
-                }
-            });
-            
-            // Set complexity based on mode with validation
-            const complexityMap = {
-                'quick': 0,
-                'clinical': 1, 
-                'advanced': 2
-            };
-            
-            const complexity = complexityMap[mode] || 0;
-            
-            // Enhanced configuration based on mode
-            const config = {
-                modelComplexity: complexity,
-                smoothLandmarks: true,
-                enableSegmentation: false,
-                minDetectionConfidence: mode === 'advanced' ? 0.7 : 0.5,
-                minTrackingConfidence: mode === 'advanced' ? 0.7 : 0.5
-            };
-            
-            console.log(`Initializing MediaPipe Pose for ${mode} mode with config:`, config);
-            
-            pose.setOptions(config);
-            
-            // Add initialization timeout
-            const timeout = setTimeout(() => {
-                reject(new Error('MediaPipe initialization timed out'));
-            }, 10000);
-            
-            // Test if pose is working by attempting to initialize
-            pose.initialize().then(() => {
-                clearTimeout(timeout);
-                console.log('MediaPipe Pose initialized successfully');
-                resolve(pose);
-            }).catch(error => {
-                clearTimeout(timeout);
-                reject(new Error(`MediaPipe initialization failed: ${error.message}`));
-            });
-            
-        } catch (error) {
-            console.error('Error creating MediaPipe Pose:', error);
-            reject(error);
+    try {
+        // Check if MediaPipe is available
+        if (typeof Pose === 'undefined') {
+            throw new Error('MediaPipe Pose library not loaded');
         }
-    });
+        
+        const pose = new Pose({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+            }
+        });
+        
+        // Set complexity based on mode with validation
+        const complexityMap = {
+            'quick': 0,
+            'clinical': 1, 
+            'advanced': 2
+        };
+        
+        const complexity = complexityMap[mode] || 0;
+        
+        // Enhanced configuration based on mode
+        const config = {
+            modelComplexity: complexity,
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            minDetectionConfidence: mode === 'advanced' ? 0.7 : 0.5,
+            minTrackingConfidence: mode === 'advanced' ? 0.7 : 0.5
+        };
+        
+        console.log(`Initializing MediaPipe Pose for ${mode} mode with config:`, config);
+        
+        pose.setOptions(config);
+        
+        // MediaPipe Pose is ready immediately after construction
+        console.log('MediaPipe Pose initialized successfully');
+        return pose;
+        
+    } catch (error) {
+        console.error('Error creating MediaPipe Pose:', error);
+        throw error;
+    }
 }
 
 /**

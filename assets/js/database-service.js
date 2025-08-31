@@ -35,8 +35,8 @@ const getAuthHeaders = () => {
     };
 };
 
-// Use function to get headers dynamically
-const authHeaders = getAuthHeaders();
+// REMOVED: Cached headers that were causing security issues
+// Now calling getAuthHeaders() directly in each fetch request
 
 // CRITICAL FIX 1: Correct unit assignment mapping (same as ui-controller.js)
 // Replaces incorrect conditional logic that assigned "mm" to percentage measurements
@@ -65,7 +65,7 @@ export async function createPatient(patientData) {
     try {
         const response = await fetch(`${API_BASE}/patients/create`, {
             method: 'POST',
-            headers: authHeaders,
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 name: patientData.name,
                 email: patientData.email || '',
@@ -95,7 +95,7 @@ export async function createAssessment(patientId, assessmentType = 'clinical') {
     try {
         const response = await fetch(`${API_BASE}/assessments/create`, {
             method: 'POST',
-            headers: authHeaders,
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 patientId,
                 assessmentType,
@@ -234,7 +234,7 @@ export async function storeAnalysisResults(assessmentId, analysisData) {
         
         const response = await fetch(`${API_BASE}/assessments/analyze`, {
             method: 'POST',
-            headers: authHeaders,
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 assessmentId,
                 measurements,
@@ -264,7 +264,7 @@ export async function testDatabaseConnection() {
         console.log('Testing database connection to:', `${API_BASE}/test-db`);
         
         const response = await fetch(`${API_BASE}/test-db`, {
-            headers: authHeaders
+            headers: getAuthHeaders()
         });
         
         console.log('Database test response status:', response.status);
@@ -408,7 +408,7 @@ export async function uploadPhoto(assessmentId, viewType, imageData, annotation 
         
         const response = await fetch(`${API_BASE}/photos/upload`, {
             method: 'POST',
-            headers: authHeaders,
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 assessmentId,
                 viewType,
@@ -476,7 +476,7 @@ export async function saveExercisePrescription(assessmentId, prescriptionData, o
         
         const response = await fetch(`${API_BASE}/exercises/prescribe`, {
             method: 'POST',
-            headers: authHeaders,
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 assessmentId,
                 clinicianId: options.clinicianId || null,
