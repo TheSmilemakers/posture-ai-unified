@@ -4,6 +4,7 @@
  */
 
 import { LANDMARKS } from './mediapipe-init.js';
+import { calibrateToRealWorld, calibrateToRealWorldEnhanced, convertToBodyPercentage } from './utils.js';
 
 /**
  * Calculate angle between three points
@@ -79,11 +80,13 @@ export function interpolatePoint(p1, p2, ratio) {
 }
 
 /**
- * Basic postural metrics calculation
+ * Basic postural metrics calculation with real-world calibration
  * @param {Array} landmarks - Pose landmarks
- * @returns {Object} Basic metrics
+ * @param {number} patientHeight - Patient height in cm (default: 170)
+ * @param {Object} imageMetadata - Image dimensions {width, height} (optional)
+ * @returns {Object} Basic metrics in real-world units
  */
-export function calculateBasicMetrics(landmarks) {
+export function calculateBasicMetrics(landmarks, patientHeight = 170, imageMetadata = null) {
     const leftShoulder = landmarks[LANDMARKS.LEFT_SHOULDER];
     const rightShoulder = landmarks[LANDMARKS.RIGHT_SHOULDER];
     const leftEye = landmarks[LANDMARKS.LEFT_EYE];
@@ -91,49 +94,84 @@ export function calculateBasicMetrics(landmarks) {
     const leftHip = landmarks[LANDMARKS.LEFT_HIP];
     const rightHip = landmarks[LANDMARKS.RIGHT_HIP];
     
-    return {
-        headTilt: Math.abs(Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * 180 / Math.PI),
-        shoulderLevel: Math.abs(leftShoulder.y - rightShoulder.y) * 100,
-        hipLevel: Math.abs(leftHip.y - rightHip.y) * 100
-    };
+    // Calculate raw normalized differences
+    const rawHeadTilt = Math.abs(Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * 180 / Math.PI);
+    const rawShoulderDiff = Math.abs(leftShoulder.y - rightShoulder.y);
+    const rawHipDiff = Math.abs(leftHip.y - rightHip.y);
+    
+    // Apply calibration if available
+    if (imageMetadata && patientHeight) {
+        const shoulderAsymmetryCm = calibrateToRealWorldEnhanced(rawShoulderDiff, patientHeight, imageMetadata, landmarks);
+        const hipAsymmetryCm = calibrateToRealWorldEnhanced(rawHipDiff, patientHeight, imageMetadata, landmarks);
+        
+        return {
+            headTilt: rawHeadTilt,  // Already in degrees - no calibration needed
+            shoulderLevel: shoulderAsymmetryCm,  // Now in real centimeters
+            hipLevel: hipAsymmetryCm  // Now in real centimeters
+        };
+    } else {
+        // Fallback to normalized values with warning
+        console.warn('calculateBasicMetrics: No calibration data available - using normalized coordinates');
+        return {
+            headTilt: rawHeadTilt,
+            shoulderLevel: rawShoulderDiff * 100,  // Normalized scale
+            hipLevel: rawHipDiff * 100  // Normalized scale
+        };
+    }
 }
 
 /**
- * Analyze front view landmarks
+ * Analyze front view landmarks with real-world calibration
  * @param {Array} landmarks - Pose landmarks
- * @returns {Object} Front view analysis
+ * @param {number} patientHeight - Patient height in cm (default: 170)
+ * @param {Object} imageMetadata - Image dimensions {width, height} (optional)
+ * @returns {Object} Front view analysis in real-world units
  */
-export function analyzeFrontView(landmarks) {
+export function analyzeFrontView(landmarks, patientHeight = 170, imageMetadata = null) {
     const data = {
         view: 'front',
         totalDeviation: 0
     };
     
-    // Q-Angle calculation
+    // Q-Angle calculation (already in degrees - no calibration needed)
     const hip = landmarks[LANDMARKS.LEFT_HIP];
     const knee = landmarks[LANDMARKS.LEFT_KNEE];
     const ankle = landmarks[LANDMARKS.LEFT_ANKLE];
     data.qAngle = calculateAngle(hip, knee, ankle);
     
-    // Shoulder symmetry
+    // Shoulder symmetry with calibration
     const leftShoulder = landmarks[LANDMARKS.LEFT_SHOULDER];
     const rightShoulder = landmarks[LANDMARKS.RIGHT_SHOULDER];
-    data.shoulderAsymmetry = Math.abs(leftShoulder.y - rightShoulder.y) * 100;
+    const rawShoulderDiff = Math.abs(leftShoulder.y - rightShoulder.y);
     
-    // Hip symmetry
+    if (imageMetadata && patientHeight) {
+        const shoulderAsymmetryCm = calibrateToRealWorldEnhanced(rawShoulderDiff, patientHeight, imageMetadata, landmarks);
+        data.shoulderAsymmetry = convertToBodyPercentage(shoulderAsymmetryCm, patientHeight);
+    } else {
+        data.shoulderAsymmetry = rawShoulderDiff * 100; // Fallback normalized
+    }
+    
+    // Hip symmetry with calibration  
     const leftHip = landmarks[LANDMARKS.LEFT_HIP];
     const rightHip = landmarks[LANDMARKS.RIGHT_HIP];
-    data.hipAsymmetry = Math.abs(leftHip.y - rightHip.y) * 100;
+    const rawHipDiff = Math.abs(leftHip.y - rightHip.y);
     
-    // Weight distribution estimate
+    if (imageMetadata && patientHeight) {
+        const hipAsymmetryCm = calibrateToRealWorldEnhanced(rawHipDiff, patientHeight, imageMetadata, landmarks);
+        data.hipAsymmetry = convertToBodyPercentage(hipAsymmetryCm, patientHeight);
+    } else {
+        data.hipAsymmetry = rawHipDiff * 100; // Fallback normalized
+    }
+    
+    // Weight distribution (percentage calculation - no calibration needed)
     const com = calculateCenterOfMass(landmarks);
     const leftFoot = landmarks[LANDMARKS.LEFT_FOOT_INDEX];
     const rightFoot = landmarks[LANDMARKS.RIGHT_FOOT_INDEX];
     const midFoot = leftFoot && rightFoot ? (leftFoot.x + rightFoot.x) / 2 : 0.5;
     
     data.weightDistribution = {
-        left: 50 - (com.x - midFoot) * 100,
-        right: 50 + (com.x - midFoot) * 100
+        left: Math.max(0, Math.min(100, 50 - (com.x - midFoot) * 100)),
+        right: Math.max(0, Math.min(100, 50 + (com.x - midFoot) * 100))
     };
     
     // Calculate total deviation
@@ -145,28 +183,37 @@ export function analyzeFrontView(landmarks) {
 }
 
 /**
- * Analyze side view landmarks
+ * Analyze side view landmarks with real-world calibration
  * @param {Array} landmarks - Pose landmarks
- * @returns {Object} Side view analysis
+ * @param {number} patientHeight - Patient height in cm (default: 170)
+ * @param {Object} imageMetadata - Image dimensions {width, height} (optional)
+ * @returns {Object} Side view analysis in real-world units
  */
-export function analyzeSideView(landmarks) {
+export function analyzeSideView(landmarks, patientHeight = 170, imageMetadata = null) {
     const data = {
         view: 'side',
         totalDeviation: 0
     };
     
-    // Forward head posture
+    // Forward head posture with calibration
     const ear = landmarks[LANDMARKS.LEFT_EAR] || landmarks[LANDMARKS.RIGHT_EAR];
     const shoulder = landmarks[LANDMARKS.LEFT_SHOULDER] || landmarks[LANDMARKS.RIGHT_SHOULDER];
-    data.forwardHead = ear && shoulder ? (ear.x - shoulder.x) * 100 : 0;
+    const rawForwardHead = ear && shoulder ? (ear.x - shoulder.x) : 0;
     
-    // Pelvic tilt estimation
+    if (imageMetadata && patientHeight && ear && shoulder) {
+        const forwardHeadCm = calibrateToRealWorldEnhanced(Math.abs(rawForwardHead), patientHeight, imageMetadata, landmarks);
+        data.forwardHead = convertToBodyPercentage(forwardHeadCm, patientHeight);
+    } else {
+        data.forwardHead = rawForwardHead * 100; // Fallback normalized
+    }
+    
+    // Pelvic tilt estimation (already in degrees - no calibration needed)
     const hip = landmarks[LANDMARKS.LEFT_HIP] || landmarks[LANDMARKS.RIGHT_HIP];
     const knee = landmarks[LANDMARKS.LEFT_KNEE] || landmarks[LANDMARKS.RIGHT_KNEE];
     data.pelvicAngle = hip && knee ? 
         Math.atan2(knee.y - hip.y, knee.x - hip.x) * 180 / Math.PI : 0;
     
-    // Kyphosis estimation
+    // Kyphosis estimation (already in degrees - no calibration needed)
     const upperBack = landmarks[LANDMARKS.LEFT_SHOULDER] || landmarks[LANDMARKS.RIGHT_SHOULDER];
     const midBack = interpolatePoint(
         landmarks[LANDMARKS.LEFT_SHOULDER], 
@@ -187,28 +234,44 @@ export function analyzeSideView(landmarks) {
 }
 
 /**
- * Analyze back view landmarks
+ * Analyze back view landmarks with real-world calibration
  * @param {Array} landmarks - Pose landmarks
- * @returns {Object} Back view analysis
+ * @param {number} patientHeight - Patient height in cm (default: 170)
+ * @param {Object} imageMetadata - Image dimensions {width, height} (optional)
+ * @returns {Object} Back view analysis in real-world units
  */
-export function analyzeBackView(landmarks) {
+export function analyzeBackView(landmarks, patientHeight = 170, imageMetadata = null) {
     const data = {
         view: 'back',
         totalDeviation: 0
     };
     
-    // Scoliosis detection
+    // Scoliosis detection with calibration
     const spine = extractSpinePoints(landmarks);
-    data.spinalDeviation = calculateMaxDeviation(spine) * 100;
+    const rawSpinalDeviation = calculateMaxDeviation(spine);
     
-    // Scapular symmetry
+    if (imageMetadata && patientHeight && rawSpinalDeviation > 0) {
+        const spinalDeviationCm = calibrateToRealWorldEnhanced(rawSpinalDeviation, patientHeight, imageMetadata, landmarks);
+        data.spinalDeviation = convertToBodyPercentage(spinalDeviationCm, patientHeight);
+    } else {
+        data.spinalDeviation = rawSpinalDeviation * 100; // Fallback normalized
+    }
+    
+    // Scapular symmetry with calibration
     const leftShoulder = landmarks[LANDMARKS.LEFT_SHOULDER];
     const rightShoulder = landmarks[LANDMARKS.RIGHT_SHOULDER];
     const leftElbow = landmarks[LANDMARKS.LEFT_ELBOW];
     const rightElbow = landmarks[LANDMARKS.RIGHT_ELBOW];
     
-    data.scapularAsymmetry = leftShoulder && rightShoulder && leftElbow && rightElbow ?
-        Math.abs((leftElbow.x - leftShoulder.x) - (rightElbow.x - rightShoulder.x)) * 100 : 0;
+    const rawScapularAsymmetry = leftShoulder && rightShoulder && leftElbow && rightElbow ?
+        Math.abs((leftElbow.x - leftShoulder.x) - (rightElbow.x - rightShoulder.x)) : 0;
+    
+    if (imageMetadata && patientHeight && rawScapularAsymmetry > 0) {
+        const scapularAsymmetryCm = calibrateToRealWorldEnhanced(rawScapularAsymmetry, patientHeight, imageMetadata, landmarks);
+        data.scapularAsymmetry = convertToBodyPercentage(scapularAsymmetryCm, patientHeight);
+    } else {
+        data.scapularAsymmetry = rawScapularAsymmetry * 100; // Fallback normalized
+    }
     
     // Calculate total deviation
     data.totalDeviation = data.spinalDeviation * 2 + data.scapularAsymmetry * 3;

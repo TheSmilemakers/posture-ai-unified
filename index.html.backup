@@ -4,30 +4,130 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#667eea">
+    <!-- Dynamic Theme Color Meta Tags for Mobile Browser Chrome -->
+    <meta name="theme-color" content="#2A2A27">
+    <meta name="theme-color" content="#57564F" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#2A2A27" media="(prefers-color-scheme: dark)">
+    <meta name="color-scheme" content="light dark">
     <meta name="description" content="AI-powered posture analysis with clinical-grade biomechanical assessment">
     
     <title>Posture AI - Advanced Biomechanical Analysis</title>
+    
+    <!-- Theme Initialization Script (Prevent FOIT) -->
+    <script>
+        (function() {
+            // Get saved theme preference or default to 'dark' (override system)
+            const savedTheme = localStorage.getItem('pra_theme_preference') || 'dark';
+            const savedBg = localStorage.getItem('pra_background_disabled') === 'true';
+            
+            // Apply theme immediately before CSS loads
+            function applyTheme(theme) {
+                const isDark = theme === 'dark' || 
+                    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                
+                document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+                document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+                
+                // Update theme-color meta tag dynamically
+                const themeColorMeta = document.querySelector('meta[name="theme-color"]:not([media])');
+                if (themeColorMeta) {
+                    themeColorMeta.content = isDark ? '#2A2A27' : '#57564F';
+                }
+            }
+            
+            // Apply theme immediately
+            applyTheme(savedTheme);
+            
+            // Apply background preference
+            if (savedBg) {
+                document.body.classList.add('no-background');
+            }
+            
+            // Store theme setter for later use
+            window.__themeController = {
+                current: savedTheme,
+                set: function(theme) {
+                    this.current = theme;
+                    localStorage.setItem('pra_theme_preference', theme);
+                    applyTheme(theme);
+                }
+            };
+            
+            // Listen for system theme changes
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: dark)').addListener(function() {
+                    if (window.__themeController.current === 'system') {
+                        applyTheme('system');
+                    }
+                });
+            }
+        })();
+    </script>
     
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
     <!-- PWA Support -->
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="manifest.json">
     
     <!-- External Stylesheets -->
     <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
     <div class="app-container">
+        <!-- Clinical Testing Disclaimer -->
+        <div class="clinical-disclaimer">
+            <div class="disclaimer-content">
+                <h3>⚠️ CLINICAL TESTING VERSION - IMPORTANT NOTICE</h3>
+                <p><strong>This is a testing version for clinical evaluation purposes only.</strong></p>
+                <ul>
+                    <li>All clients must provide written informed consent before use</li>
+                    <li>Data is stored locally in your browser only (not HIPAA compliant)</li>
+                    <li>Not intended for diagnosis or treatment decisions</li>
+                    <li>Results should be verified by qualified healthcare professionals</li>
+                    <li>By proceeding, you confirm patient consent has been obtained</li>
+                </ul>
+                <button class="btn btn-warning">
+                    I Understand - Proceed with Testing
+                </button>
+            </div>
+        </div>
+
         <!-- Main Header -->
-        <header class="app-header">
-            <h1>🦴 Posture AI Analysis</h1>
-            <p>Two Tonys Treatment Clinic - Advanced Biomechanical Assessment</p>
+        <header class="app-header" id="appHeader">
+            <div class="header-brand">
+                <svg class="brand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20"/>
+                    <path d="M8 5l4-3 4 3"/>
+                    <path d="M8 19l4 3 4-3"/>
+                    <circle cx="12" cy="9" r="2"/>
+                    <circle cx="12" cy="15" r="2"/>
+                </svg>
+                <div class="header-text">
+                    <h1>Posture AI Analysis</h1>
+                    <p>Two Tonys Treatment Clinic</p>
+                </div>
+            </div>
+            <div class="header-controls">
+                <button class="control-btn theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Dark theme active - click for system">
+                    <svg class="control-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                </button>
+                <button class="control-btn background-toggle" id="bgToggle" aria-label="Toggle background image" title="Toggle medical background visualization">
+                    <svg class="control-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="9" cy="9" r="2"/>
+                        <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                    </svg>
+                </button>
+            </div>
         </header>
 
         <!-- Mode Selection Screen -->
@@ -39,8 +139,12 @@
             
             <div class="mode-grid">
                 <!-- Quick Assessment Mode -->
-                <div class="mode-card" onclick="selectMode('quick')">
-                    <span class="mode-icon">📱</span>
+                <div class="mode-card" data-mode="quick">
+                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <!-- Mobile phone icon -->
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                        <line x1="12" y1="18" x2="12.01" y2="18"/>
+                    </svg>
                     <h3 class="mode-title">Quick Assessment</h3>
                     <p class="mode-description">
                         Fast, mobile-optimized posture check with instant results
@@ -54,8 +158,11 @@
                 </div>
 
                 <!-- Clinical Assessment Mode -->
-                <div class="mode-card" onclick="selectMode('clinical')">
-                    <span class="mode-icon">🏥</span>
+                <div class="mode-card" data-mode="clinical">
+                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <!-- Medical cross icon -->
+                        <path d="M9 2v7H2v6h7v7h6v-7h7V9h-7V2H9z"/>
+                    </svg>
                     <h3 class="mode-title">Clinical Assessment</h3>
                     <p class="mode-description">
                         Complete clinical workflow with detailed documentation
@@ -69,8 +176,11 @@
                 </div>
 
                 <!-- Advanced Biomechanics Mode -->
-                <div class="mode-card" onclick="selectMode('advanced')">
-                    <span class="mode-icon">🔬</span>
+                <div class="mode-card" data-mode="advanced">
+                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <!-- Microscope icon -->
+                        <path d="M5.5 18H8.5M8.5 18V14M8.5 14L3 8.5C2 7.5 2 6 3 5L5 3C6 2 7.5 2 8.5 3L14 8.5M8.5 14H14M14 8.5L16 10.5M14 8.5V4M22 21L18 17M11 17C11 19.7614 8.76142 22 6 22C3.23858 22 1 19.7614 1 17C1 14.2386 3.23858 12 6 12C8.76142 12 11 14.2386 11 17Z"/>
+                    </svg>
                     <h3 class="mode-title">Advanced Biomechanics</h3>
                     <p class="mode-description">
                         Research-grade analysis with comprehensive metrics
@@ -85,11 +195,52 @@
             </div>
         </div>
 
+        <!-- Patient Selection (Hidden until mode selected) -->
+        <div id="patient-selection" class="patient-selection hidden">
+            <div class="container">
+                <h2>Patient Information</h2>
+                <p>Select an existing patient or create a new one</p>
+                
+                <div class="patient-options">
+                    <!-- New Patient -->
+                    <div class="patient-card">
+                        <h3>New Patient</h3>
+                        <div class="form-group">
+                            <label for="new-patient-name" class="form-label">Patient Name *</label>
+                            <input type="text" id="new-patient-name" class="form-input" placeholder="Enter patient name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-patient-dob" class="form-label">Date of Birth *</label>
+                            <input type="date" id="new-patient-dob" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-patient-complaints" class="form-label">Chief Complaints *</label>
+                            <textarea id="new-patient-complaints" class="form-input" 
+                                placeholder="Describe the main issues or concerns (e.g., neck pain, shoulder tension, back stiffness)" 
+                                rows="3" required></textarea>
+                        </div>
+                        <button class="btn btn-primary" data-action="create-patient">Create Patient & Continue</button>
+                    </div>
+                    
+                    <!-- Anonymous Patient -->
+                    <div class="patient-card">
+                        <h3>Anonymous Assessment</h3>
+                        <p>Proceed without creating a patient record</p>
+                        <button class="btn btn-secondary" data-action="skip-patient">Continue Anonymously</button>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" data-action="back-to-modes">Back to Mode Selection</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Content Area (Hidden Initially) -->
         <div id="main-content" class="main-content">
             <!-- Navigation Bar -->
             <nav class="nav-bar">
-                <button class="nav-back" onclick="backToModeSelection()">
+                                <button class="nav-back">
                     <span>←</span>
                     <span>Back</span>
                 </button>
@@ -111,19 +262,27 @@
                     </div>
                     
                     <div class="action-buttons mt-lg">
-                        <button class="btn btn-large" onclick="startCamera('quick')">
-                            <span>📸</span>
+                        <button id="start-camera-quick" class="btn btn-large" data-action="start-camera" data-mode="quick">
+                            <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                <circle cx="12" cy="13" r="4"/>
+                            </svg>
                             <span>Use Camera</span>
                         </button>
-                        <label class="btn btn-large">
-                            <span>📁</span>
+                        <label id="upload-photo-quick" class="btn btn-large">
+                            <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                <polyline points="13 2 13 9 20 9"/>
+                            </svg>
                             <span>Upload Photo</span>
-                            <input type="file" accept="image/*" onchange="handleFileUpload('quick', event)" style="display: none;">
+                            <input type="file" accept="image/*" data-mode="quick" style="display: none;">
                         </label>
                     </div>
                     
-                    <button id="quick-analyze-btn" class="btn btn-success btn-large btn-block mt-lg hidden" onclick="analyzePosture('quick')">
-                        <span>🔬</span>
+                    <button id="quick-analyze-btn" class="btn btn-success btn-large btn-block mt-lg hidden" data-action="analyze-posture" data-mode="quick">
+                        <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
                         <span>Analyze Posture</span>
                     </button>
                     
@@ -146,12 +305,20 @@
                         </div>
                         
                         <div class="action-buttons">
-                            <button class="btn" onclick="saveQuickResults()">
-                                <span>💾</span>
+                            <button id="save-quick-results" class="btn" data-action="save-results" data-mode="quick">
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
                                 <span>Save Results</span>
                             </button>
-                            <button class="btn btn-secondary" onclick="resetQuickAnalysis()">
-                                <span>🔄</span>
+                            <button id="reset-quick-analysis" class="btn btn-secondary" data-action="reset-analysis" data-mode="quick">
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/>
+                                    <polyline points="1 20 1 14 7 14"/>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                </svg>
                                 <span>New Analysis</span>
                             </button>
                         </div>
@@ -163,13 +330,13 @@
             <div id="clinical-mode" class="mode-content hidden">
                 <!-- Tab Navigation -->
                 <div class="tab-nav">
-                    <button class="tab-btn active" onclick="showTab('clinical', 'client-info')">Client Info</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'assessment')">Assessment</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'north-star')">North Star</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'release')">Release</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'reset')">Reset</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'rebuild')">Rebuild</button>
-                    <button class="tab-btn" onclick="showTab('clinical', 'summary')">Summary</button>
+                    <button class="tab-btn active" data-tab="client-info">Client Info</button>
+                    <button class="tab-btn" data-tab="assessment">Assessment</button>
+                    <button class="tab-btn" data-tab="north-star">North Star</button>
+                    <button class="tab-btn" data-tab="release">Release</button>
+                    <button class="tab-btn" data-tab="reset">Reset</button>
+                    <button class="tab-btn" data-tab="rebuild">Rebuild</button>
+                    <button class="tab-btn" data-tab="summary">Summary</button>
                 </div>
 
                 <!-- Tab Contents -->
@@ -198,7 +365,7 @@
                                     <option value="3" selected>3</option>
                                 </select>
                             </div>
-                            <button type="button" class="btn btn-large" onclick="showTab('clinical', 'assessment')">
+                            <button type="button" id="next-to-assessment" class="btn btn-large" data-action="show-tab" data-mode="clinical" data-tab="assessment">
                                 Next: Assessment
                             </button>
                         </form>
@@ -216,10 +383,35 @@
                                     <span class="status-icon" id="clinical-front-status">📷</span>
                                     Front View
                                 </h3>
-                                <div class="upload-area">
-                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('front', event)">
-                                    <p style="font-size: 2rem;">👤</p>
-                                    <p>Click to upload front view</p>
+                                <div class="upload-container">
+                                    <div class="upload-area" id="clinical-front-upload-area">
+                                        <input type="file" accept="image/*" capture="environment" data-view="front" data-mode="clinical">
+                                        <div class="upload-content">
+                                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="17 8 12 3 7 8"/>
+                                                <line x1="12" y1="3" x2="12" y2="15"/>
+                                            </svg>
+                                            <p class="upload-text">Drag & drop or click to browse</p>
+                                            <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                        </div>
+                                    </div>
+                                    <div class="upload-actions">
+                                        <button class="btn btn-icon" data-action="camera-capture" data-view="front" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                                <circle cx="12" cy="13" r="4"/>
+                                            </svg>
+                                            <span>Take Photo</span>
+                                        </button>
+                                        <button class="btn btn-icon btn-secondary" data-action="file-browse" data-view="front" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                                <polyline points="13 2 13 9 20 9"/>
+                                            </svg>
+                                            <span>Upload File</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <img id="clinical-front-preview" class="uploaded-image hidden">
                                 <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
@@ -231,10 +423,35 @@
                                     <span class="status-icon" id="clinical-side-status">📷</span>
                                     Side View
                                 </h3>
-                                <div class="upload-area">
-                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('side', event)">
-                                    <p style="font-size: 2rem;">🚶</p>
-                                    <p>Click to upload side view</p>
+                                <div class="upload-container">
+                                    <div class="upload-area" id="clinical-side-upload-area">
+                                        <input type="file" accept="image/*" capture="environment" data-view="side" data-mode="clinical">
+                                        <div class="upload-content">
+                                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="17 8 12 3 7 8"/>
+                                                <line x1="12" y1="3" x2="12" y2="15"/>
+                                            </svg>
+                                            <p class="upload-text">Drag & drop or click to browse</p>
+                                            <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                        </div>
+                                    </div>
+                                    <div class="upload-actions">
+                                        <button class="btn btn-icon" data-action="camera-capture" data-view="side" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                                <circle cx="12" cy="13" r="4"/>
+                                            </svg>
+                                            <span>Take Photo</span>
+                                        </button>
+                                        <button class="btn btn-icon btn-secondary" data-action="file-browse" data-view="side" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                                <polyline points="13 2 13 9 20 9"/>
+                                            </svg>
+                                            <span>Upload File</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <img id="clinical-side-preview" class="uploaded-image hidden">
                                 <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
@@ -246,10 +463,35 @@
                                     <span class="status-icon" id="clinical-back-status">📷</span>
                                     Back View
                                 </h3>
-                                <div class="upload-area">
-                                    <input type="file" accept="image/*" onchange="uploadClinicalPhoto('back', event)">
-                                    <p style="font-size: 2rem;">🔄</p>
-                                    <p>Click to upload back view</p>
+                                <div class="upload-container">
+                                    <div class="upload-area" id="clinical-back-upload-area">
+                                        <input type="file" accept="image/*" capture="environment" data-view="back" data-mode="clinical">
+                                        <div class="upload-content">
+                                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="17 8 12 3 7 8"/>
+                                                <line x1="12" y1="3" x2="12" y2="15"/>
+                                            </svg>
+                                            <p class="upload-text">Drag & drop or click to browse</p>
+                                            <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                        </div>
+                                    </div>
+                                    <div class="upload-actions">
+                                        <button class="btn btn-icon" data-action="camera-capture" data-view="back" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                                <circle cx="12" cy="13" r="4"/>
+                                            </svg>
+                                            <span>Take Photo</span>
+                                        </button>
+                                        <button class="btn btn-icon btn-secondary" data-action="file-browse" data-view="back" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                                <polyline points="13 2 13 9 20 9"/>
+                                            </svg>
+                                            <span>Upload File</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <img id="clinical-back-preview" class="uploaded-image hidden">
                                 <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
@@ -257,40 +499,462 @@
                         </div>
 
                         <div class="action-buttons">
-                            <button class="btn btn-secondary" onclick="showTab('clinical', 'client-info')">Previous</button>
-                            <button class="btn" onclick="showTab('clinical', 'north-star')">Next: North Star</button>
+                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="client-info">Previous</button>
+                            <button class="btn" data-action="show-tab" data-mode="clinical" data-tab="north-star">Next: North Star</button>
                         </div>
                     </div>
 
-                    <!-- Additional Clinical Tabs -->
+                    <!-- North Star Tab - Posture Goals -->
                     <div id="clinical-north-star" class="tab-content">
                         <h2>North Star Posture</h2>
-                        <p>Define the ideal posture goals</p>
-                        <!-- Content here -->
+                        <p>Define the ideal posture and movement goals for this client</p>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Primary Posture Goal</label>
+                            <select id="primary-goal" class="form-select">
+                                <option value="">Select primary goal...</option>
+                                <option value="head-alignment">Improve Head Alignment</option>
+                                <option value="shoulder-balance">Balance Shoulders</option>
+                                <option value="spinal-alignment">Correct Spinal Alignment</option>
+                                <option value="hip-stability">Enhance Hip Stability</option>
+                                <option value="overall-posture">Overall Posture Improvement</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Target Timeline</label>
+                            <select id="timeline" class="form-select">
+                                <option value="4-weeks">4 Weeks</option>
+                                <option value="8-weeks" selected>8 Weeks</option>
+                                <option value="12-weeks">12 Weeks</option>
+                                <option value="ongoing">Ongoing Maintenance</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Specific Objectives</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" value="pain-reduction"> Pain Reduction</label>
+                                <label><input type="checkbox" value="improved-mobility"> Improved Mobility</label>
+                                <label><input type="checkbox" value="better-balance"> Better Balance</label>
+                                <label><input type="checkbox" value="increased-strength"> Increased Strength</label>
+                                <label><input type="checkbox" value="enhanced-awareness"> Enhanced Body Awareness</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Success Metrics</label>
+                            <textarea id="success-metrics" class="form-textarea" 
+                                placeholder="How will we measure success? (e.g., reduced forward head posture by 50%, improved shoulder symmetry, pain-free daily activities...)"></textarea>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="assessment">Previous</button>
+                            <button class="btn" data-action="show-tab" data-mode="clinical" data-tab="release">Next: Release</button>
+                        </div>
                     </div>
 
                     <div id="clinical-release" class="tab-content">
                         <h2>Release Movements</h2>
-                        <p>Prescribe release exercises</p>
-                        <!-- Content here -->
+                        <p>Target tight and overactive muscles that need to be released</p>
+                        
+                        <div class="exercise-prescription">
+                            <h3>Identified Problem Areas</h3>
+                            <div id="problem-areas" class="metrics-grid">
+                                <!-- Will be populated based on assessment -->
+                            </div>
+                            
+                            <h3>Recommended Release Exercises</h3>
+                            <div id="release-exercises" class="exercise-list">
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Upper Trapezius Stretch</h4>
+                                        <span class="exercise-duration">2 sets x 30 sec hold</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        Gently tilt head to one side, place hand on opposite side of head and apply gentle pressure.
+                                    </p>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox"> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="3x-week">3x per week</option>
+                                            <option value="2x-week">2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Pectoralis Doorway Stretch</h4>
+                                        <span class="exercise-duration">2 sets x 45 sec hold</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        Stand in doorway, place forearms on frame, step forward to stretch chest muscles.
+                                    </p>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox"> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily" selected>Daily</option>
+                                            <option value="3x-week">3x per week</option>
+                                            <option value="2x-week">2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Hip Flexor Couch Stretch</h4>
+                                        <span class="exercise-duration">2 sets x 60 sec hold</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        Place back foot on couch, front foot forward, push hips forward to stretch hip flexors.
+                                    </p>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox"> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="3x-week" selected>3x per week</option>
+                                            <option value="2x-week">2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Additional Release Notes</label>
+                                <textarea id="release-notes" class="form-textarea" 
+                                    placeholder="Any additional stretches, modifications, or precautions for this client..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="north-star">Previous</button>
+                            <button class="btn" data-action="show-tab" data-mode="clinical" data-tab="reset">Next: Reset</button>
+                        </div>
                     </div>
 
                     <div id="clinical-reset" class="tab-content">
                         <h2>Reset Movements</h2>
-                        <p>Prescribe reset exercises</p>
-                        <!-- Content here -->
+                        <p>Activate and re-educate inhibited muscles to restore proper movement patterns</p>
+                        
+                        <div class="exercise-prescription">
+                            <h3>Activation Targets</h3>
+                            <div class="info-card">
+                                <p>Based on assessment findings, these muscles likely need activation and re-education:</p>
+                                <ul id="activation-targets">
+                                    <li>Deep neck flexors (for forward head posture)</li>
+                                    <li>Lower trapezius and serratus anterior (for shoulder elevation)</li>
+                                    <li>Glutes and deep core stabilizers (for postural stability)</li>
+                                </ul>
+                            </div>
+                            
+                            <h3>Recommended Reset Exercises</h3>
+                            <div id="reset-exercises" class="exercise-list">
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Deep Neck Flexor Activation (Chin Tucks)</h4>
+                                        <span class="exercise-duration">3 sets x 10 reps, 5 sec hold</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        Lying down, gently draw chin back creating a double chin. Feel stretch at base of skull.
+                                    </p>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox" checked> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily" selected>Daily</option>
+                                            <option value="3x-week">3x per week</option>
+                                            <option value="2x-week">2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Wall Angels (Scapular Activation)</h4>
+                                        <span class="exercise-duration">3 sets x 15 reps</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        Back to wall, arms in goal post position, slide arms up and down maintaining wall contact.
+                                    </p>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox" checked> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily" selected>Daily</option>
+                                            <option value="3x-week">3x per week</option>
+                                            <option value="2x-week">2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Glute Bridge (Glute Activation)</h4>
+                                        <span class="exercise-duration">3 sets x 12 reps, 3 sec hold</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        Lying on back, knees bent, lift hips by squeezing glutes. Focus on glute activation.
+                                    </p>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox" checked> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="3x-week" selected>3x per week</option>
+                                            <option value="2x-week">2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Dead Bug (Core Stabilization)</h4>
+                                        <span class="exercise-duration">3 sets x 8 each side</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        Lying on back, arms up, knees bent 90°. Lower opposite arm and leg slowly, maintain neutral spine.
+                                    </p>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox"> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="3x-week" selected>3x per week</option>
+                                            <option value="2x-week">2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Reset Exercise Notes</label>
+                                <textarea id="reset-notes" class="form-textarea" 
+                                    placeholder="Progression notes, modifications, or specific cueing for this client..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="release">Previous</button>
+                            <button class="btn" data-action="show-tab" data-mode="clinical" data-tab="rebuild">Next: Rebuild</button>
+                        </div>
                     </div>
 
                     <div id="clinical-rebuild" class="tab-content">
                         <h2>Rebuild Program</h2>
-                        <p>Design strengthening program</p>
-                        <!-- Content here -->
+                        <p>Strengthen and build endurance in key postural muscles for long-term stability</p>
+                        
+                        <div class="exercise-prescription">
+                            <h3>Strengthening Phase Goals</h3>
+                            <div class="info-card">
+                                <p>Progressive strengthening to build postural endurance and stability:</p>
+                                <ul>
+                                    <li>Phase 1 (Weeks 1-4): Basic strength and motor control</li>
+                                    <li>Phase 2 (Weeks 5-8): Progressive loading and endurance</li>
+                                    <li>Phase 3 (Weeks 9-12): Functional integration</li>
+                                </ul>
+                            </div>
+                            
+                            <h3>Recommended Strengthening Exercises</h3>
+                            <div id="rebuild-exercises" class="exercise-list">
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Resistance Band Rows</h4>
+                                        <span class="exercise-duration">3 sets x 12-15 reps</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        Seated or standing, pull band to chest focusing on squeezing shoulder blades together.
+                                    </p>
+                                    <div class="exercise-progression">
+                                        <strong>Progression:</strong> Light → Medium → Heavy resistance
+                                    </div>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox" checked> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="3x-week" selected>3x per week</option>
+                                            <option value="2x-week">2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Bird Dog (Dynamic Stability)</h4>
+                                        <span class="exercise-duration">3 sets x 10 each side, 10 sec hold</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        On hands and knees, extend opposite arm and leg, hold position with stable spine.
+                                    </p>
+                                    <div class="exercise-progression">
+                                        <strong>Progression:</strong> Static hold → Dynamic movement → Added resistance
+                                    </div>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox" checked> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="3x-week" selected>3x per week</option>
+                                            <option value="2x-week">2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Single-Leg Deadlift</h4>
+                                        <span class="exercise-duration">3 sets x 8 each leg</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        Balance on one leg, hinge at hip keeping spine neutral, reach toward ground.
+                                    </p>
+                                    <div class="exercise-progression">
+                                        <strong>Progression:</strong> Bodyweight → Light weight → Progressive loading
+                                    </div>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox"> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="3x-week">3x per week</option>
+                                            <option value="2x-week" selected>2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="exercise-card">
+                                    <div class="exercise-header">
+                                        <h4>Pallof Press (Anti-Rotation)</h4>
+                                        <span class="exercise-duration">3 sets x 10 each side</span>
+                                    </div>
+                                    <p class="exercise-description">
+                                        Hold band at chest, press out and resist rotation, maintaining stable core.
+                                    </p>
+                                    <div class="exercise-progression">
+                                        <strong>Progression:</strong> Static hold → Dynamic press → Increased resistance
+                                    </div>
+                                    <div class="exercise-controls">
+                                        <label><input type="checkbox"> Include in program</label>
+                                        <select class="exercise-frequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="3x-week">3x per week</option>
+                                            <option value="2x-week" selected>2x per week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Progression Timeline</label>
+                                <select id="progression-timeline" class="form-select">
+                                    <option value="conservative">Conservative (slower progression)</option>
+                                    <option value="standard" selected>Standard progression</option>
+                                    <option value="aggressive">Aggressive (faster progression)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Strengthening Notes</label>
+                                <textarea id="rebuild-notes" class="form-textarea" 
+                                    placeholder="Equipment available, injury history, specific progressions for this client..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="reset">Previous</button>
+                            <button class="btn" data-action="show-tab" data-mode="clinical" data-tab="summary">Next: Summary</button>
+                        </div>
                     </div>
 
                     <div id="clinical-summary" class="tab-content">
                         <h2>Assessment Summary</h2>
-                        <p>Review and generate report</p>
-                        <!-- Content here -->
+                        <p>Review complete assessment and generate clinical report</p>
+                        
+                        <div class="summary-sections">
+                            <div class="summary-card">
+                                <h3>Client Information</h3>
+                                <div id="summary-client-info" class="summary-content">
+                                    <p><strong>Name:</strong> <span id="summary-client-name">-</span></p>
+                                    <p><strong>Date:</strong> <span id="summary-date">-</span></p>
+                                    <p><strong>Assessor:</strong> <span id="summary-assessor">-</span></p>
+                                    <p><strong>Sessions/Week:</strong> <span id="summary-sessions">-</span></p>
+                                </div>
+                            </div>
+                            
+                            <div class="summary-card">
+                                <h3>Assessment Results</h3>
+                                <div id="summary-assessment" class="summary-content">
+                                    <div class="assessment-photos">
+                                        <div class="photo-summary">
+                                            <span class="photo-label">Front View:</span>
+                                            <span id="front-photo-status" class="photo-status">Not uploaded</span>
+                                        </div>
+                                        <div class="photo-summary">
+                                            <span class="photo-label">Side View:</span>
+                                            <span id="side-photo-status" class="photo-status">Not uploaded</span>
+                                        </div>
+                                        <div class="photo-summary">
+                                            <span class="photo-label">Back View:</span>
+                                            <span id="back-photo-status" class="photo-status">Not uploaded</span>
+                                        </div>
+                                    </div>
+                                    <div id="key-findings" class="key-findings">
+                                        <p><em>Upload photos and complete assessment to see analysis results here.</em></p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="summary-card">
+                                <h3>North Star Goals</h3>
+                                <div id="summary-goals" class="summary-content">
+                                    <p><strong>Primary Goal:</strong> <span id="summary-primary-goal">Not set</span></p>
+                                    <p><strong>Timeline:</strong> <span id="summary-timeline">Not set</span></p>
+                                    <p><strong>Success Metrics:</strong></p>
+                                    <div id="summary-metrics" class="summary-metrics">Not defined</div>
+                                </div>
+                            </div>
+                            
+                            <div class="summary-card">
+                                <h3>Exercise Prescription Summary</h3>
+                                <div id="summary-exercises" class="summary-content">
+                                    <div class="exercise-phase">
+                                        <h4>Release Phase</h4>
+                                        <div id="selected-release-exercises">No exercises selected</div>
+                                    </div>
+                                    <div class="exercise-phase">
+                                        <h4>Reset Phase</h4>
+                                        <div id="selected-reset-exercises">No exercises selected</div>
+                                    </div>
+                                    <div class="exercise-phase">
+                                        <h4>Rebuild Phase</h4>
+                                        <div id="selected-rebuild-exercises">No exercises selected</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Additional Clinical Notes</label>
+                            <textarea id="clinical-summary-notes" class="form-textarea" 
+                                placeholder="Any additional observations, precautions, or recommendations for this client..."></textarea>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="rebuild">Previous</button>
+                            <button id="save-clinical-assessment" class="btn" data-action="save-clinical" data-mode="clinical">
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
+                                <span>Save Assessment</span>
+                            </button>
+                            <button id="generate-clinical-pdf" class="btn btn-success" data-action="generate-clinical-report" data-mode="clinical">
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                    <polyline points="10 9 9 9 8 9"/>
+                                </svg>
+                                <span>Generate PDF Report</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -308,10 +972,35 @@
                                 <span class="status-icon" id="advanced-front-status">📷</span>
                                 Front View
                             </h3>
-                            <div class="upload-area">
-                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('front', event)">
-                                <p style="font-size: 2rem;">👤</p>
-                                <p>Click to upload front view</p>
+                            <div class="upload-container">
+                                <div class="upload-area" id="advanced-front-upload-area">
+                                    <input type="file" accept="image/*" capture="environment" data-view="front" data-mode="advanced">
+                                    <div class="upload-content">
+                                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="17 8 12 3 7 8"/>
+                                            <line x1="12" y1="3" x2="12" y2="15"/>
+                                        </svg>
+                                        <p class="upload-text">Drag & drop or click to browse</p>
+                                        <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                    </div>
+                                </div>
+                                <div class="upload-actions">
+                                    <button class="btn btn-icon" data-action="camera-capture" data-view="front" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                            <circle cx="12" cy="13" r="4"/>
+                                        </svg>
+                                        <span>Take Photo</span>
+                                    </button>
+                                    <button class="btn btn-icon btn-secondary" data-action="file-browse" data-view="front" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                            <polyline points="13 2 13 9 20 9"/>
+                                        </svg>
+                                        <span>Upload File</span>
+                                    </button>
+                                </div>
                             </div>
                             <img id="advanced-front-preview" class="uploaded-image hidden">
                             <canvas id="advanced-front-canvas" class="pose-canvas"></canvas>
@@ -323,10 +1012,35 @@
                                 <span class="status-icon" id="advanced-side-status">📷</span>
                                 Side View
                             </h3>
-                            <div class="upload-area">
-                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('side', event)">
-                                <p style="font-size: 2rem;">🚶</p>
-                                <p>Click to upload side view</p>
+                            <div class="upload-container">
+                                <div class="upload-area" id="advanced-side-upload-area">
+                                    <input type="file" accept="image/*" capture="environment" data-view="side" data-mode="advanced">
+                                    <div class="upload-content">
+                                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="17 8 12 3 7 8"/>
+                                            <line x1="12" y1="3" x2="12" y2="15"/>
+                                        </svg>
+                                        <p class="upload-text">Drag & drop or click to browse</p>
+                                        <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                    </div>
+                                </div>
+                                <div class="upload-actions">
+                                    <button class="btn btn-icon" data-action="camera-capture" data-view="side" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                            <circle cx="12" cy="13" r="4"/>
+                                        </svg>
+                                        <span>Take Photo</span>
+                                    </button>
+                                    <button class="btn btn-icon btn-secondary" data-action="file-browse" data-view="side" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                            <polyline points="13 2 13 9 20 9"/>
+                                        </svg>
+                                        <span>Upload File</span>
+                                    </button>
+                                </div>
                             </div>
                             <img id="advanced-side-preview" class="uploaded-image hidden">
                             <canvas id="advanced-side-canvas" class="pose-canvas"></canvas>
@@ -338,10 +1052,35 @@
                                 <span class="status-icon" id="advanced-back-status">📷</span>
                                 Back View
                             </h3>
-                            <div class="upload-area">
-                                <input type="file" accept="image/*" onchange="uploadAdvancedPhoto('back', event)">
-                                <p style="font-size: 2rem;">🔄</p>
-                                <p>Click to upload back view</p>
+                            <div class="upload-container">
+                                <div class="upload-area" id="advanced-back-upload-area">
+                                    <input type="file" accept="image/*" capture="environment" data-view="back" data-mode="advanced">
+                                    <div class="upload-content">
+                                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="17 8 12 3 7 8"/>
+                                            <line x1="12" y1="3" x2="12" y2="15"/>
+                                        </svg>
+                                        <p class="upload-text">Drag & drop or click to browse</p>
+                                        <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                    </div>
+                                </div>
+                                <div class="upload-actions">
+                                    <button class="btn btn-icon" data-action="camera-capture" data-view="back" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                            <circle cx="12" cy="13" r="4"/>
+                                        </svg>
+                                        <span>Take Photo</span>
+                                    </button>
+                                    <button class="btn btn-icon btn-secondary" data-action="file-browse" data-view="back" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                            <polyline points="13 2 13 9 20 9"/>
+                                        </svg>
+                                        <span>Upload File</span>
+                                    </button>
+                                </div>
                             </div>
                             <img id="advanced-back-preview" class="uploaded-image hidden">
                             <canvas id="advanced-back-canvas" class="pose-canvas"></canvas>
@@ -356,7 +1095,14 @@
                         </div>
 
                         <!-- Biomechanical Metrics -->
-                        <h3 class="mt-xl">📊 Biomechanical Analysis</h3>
+                        <h3 class="mt-xl">
+                            <svg class="inline-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="20" x2="18" y2="10"/>
+                                <line x1="12" y1="20" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="6" y2="14"/>
+                            </svg>
+                            Biomechanical Analysis
+                        </h3>
                         <div class="metrics-grid" id="advanced-metrics">
                             <!-- Metrics will be populated here -->
                         </div>
@@ -382,16 +1128,30 @@
                         </div>
 
                         <div class="action-buttons">
-                            <button class="btn" onclick="generateClinicalReport()">
-                                <span>📄</span>
+                            <button id="generate-clinical-report" class="btn" data-action="generate-report" data-mode="advanced">
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                    <polyline points="10 9 9 9 8 9"/>
+                                </svg>
                                 <span>Generate Clinical Report</span>
                             </button>
-                            <button class="btn" onclick="exportBiomechanics()">
-                                <span>📊</span>
+                            <button id="export-biomechanics" class="btn" data-action="export-data" data-mode="advanced">
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
                                 <span>Export Data</span>
                             </button>
-                            <button class="btn btn-secondary" onclick="resetAdvancedAnalysis()">
-                                <span>🔄</span>
+                            <button id="reset-advanced-analysis" class="btn btn-secondary" data-action="reset-analysis" data-mode="advanced">
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/>
+                                    <polyline points="1 20 1 14 7 14"/>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                </svg>
                                 <span>New Analysis</span>
                             </button>
                         </div>
@@ -409,900 +1169,5 @@
 
     <!-- JavaScript Modules -->
     <script type="module" src="assets/js/main.js"></script>
-                    side: null,
-                    back: null
-                }
-            },
-            uploadedViews: {
-                clinical: {
-                    front: false,
-                    side: false,
-                    back: false
-                },
-                advanced: {
-                    front: false,
-                    side: false,
-                    back: false
-                }
-            }
-        };
-
-        // MediaPipe Pose Connections
-        const POSE_CONNECTIONS = [
-            [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5],
-            [5, 6], [6, 8], [9, 10], [11, 12], [11, 13],
-            [13, 15], [15, 17], [15, 19], [15, 21], [17, 19],
-            [12, 14], [14, 16], [16, 18], [16, 20], [16, 22],
-            [18, 20], [11, 23], [12, 24], [23, 24], [23, 25],
-            [24, 26], [25, 27], [26, 28], [27, 29], [28, 30],
-            [29, 31], [30, 32]
-        ];
-
-        // Initialize MediaPipe Pose
-        function initializePose() {
-            if (AppState.pose) return;
-            
-            AppState.pose = new Pose({
-                locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
-                }
-            });
-            
-            // Set options based on mode
-            const complexity = AppState.currentMode === 'advanced' ? 2 : 1;
-            
-            AppState.pose.setOptions({
-                modelComplexity: complexity,
-                smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-        }
-
-        // Mode Selection
-        function selectMode(mode) {
-            AppState.currentMode = mode;
-            
-            // Hide mode selection
-            document.getElementById('mode-selection').style.display = 'none';
-            
-            // Show main content
-            const mainContent = document.getElementById('main-content');
-            mainContent.classList.add('active');
-            
-            // Update navigation
-            const titles = {
-                'quick': 'Quick Assessment',
-                'clinical': 'Clinical Assessment',
-                'advanced': 'Advanced Biomechanics'
-            };
-            document.getElementById('mode-title').textContent = titles[mode];
-            
-            // Show appropriate mode content
-            document.querySelectorAll('.mode-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-            document.getElementById(`${mode}-mode`).classList.remove('hidden');
-            
-            // Initialize MediaPipe
-            initializePose();
-        }
-
-        // Back to Mode Selection
-        function backToModeSelection() {
-            // Reset state
-            AppState.currentMode = null;
-            closeCamera();
-            
-            // Hide main content
-            document.getElementById('main-content').classList.remove('active');
-            
-            // Show mode selection
-            document.getElementById('mode-selection').style.display = 'flex';
-            
-            // Hide all mode contents
-            document.querySelectorAll('.mode-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-        }
-
-        // Camera Functions
-        async function startCamera(mode) {
-            try {
-                closeCamera();
-                
-                const constraints = {
-                    video: {
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                };
-                
-                AppState.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                
-                const video = document.getElementById(`${mode}-camera`);
-                video.srcObject = AppState.currentStream;
-                video.classList.remove('hidden');
-                
-                // Show analyze button
-                document.getElementById(`${mode}-analyze-btn`).classList.remove('hidden');
-                
-            } catch (error) {
-                console.error('Camera error:', error);
-                alert('Camera access denied. Please use file upload instead.');
-            }
-        }
-
-        function closeCamera() {
-            if (AppState.currentStream) {
-                AppState.currentStream.getTracks().forEach(track => track.stop());
-                AppState.currentStream = null;
-            }
-        }
-
-        // File Upload Handlers
-        function handleFileUpload(mode, event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const preview = document.getElementById(`${mode}-preview`);
-                preview.src = e.target.result;
-                preview.classList.remove('hidden');
-                
-                // Hide camera if active
-                const camera = document.getElementById(`${mode}-camera`);
-                if (camera) camera.classList.add('hidden');
-                
-                // Show analyze button
-                document.getElementById(`${mode}-analyze-btn`).classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function uploadClinicalPhoto(view, event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const preview = document.getElementById(`clinical-${view}-preview`);
-                preview.src = e.target.result;
-                preview.classList.remove('hidden');
-                
-                // Update status
-                document.getElementById(`clinical-${view}-status`).textContent = '✅';
-                document.getElementById(`clinical-${view}-card`).classList.add('completed');
-                AppState.uploadedViews.clinical[view] = true;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function uploadAdvancedPhoto(view, event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            showLoading();
-            
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const preview = document.getElementById(`advanced-${view}-preview`);
-                preview.src = e.target.result;
-                preview.classList.remove('hidden');
-                
-                // Process with MediaPipe
-                const img = new Image();
-                img.onload = async function() {
-                    AppState.pose.onResults((results) => {
-                        processAdvancedResults(results, view);
-                    });
-                    await AppState.pose.send({image: img});
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // Posture Analysis
-        async function analyzePosture(mode) {
-            showLoading();
-            
-            let imageSource;
-            const video = document.getElementById(`${mode}-camera`);
-            const preview = document.getElementById(`${mode}-preview`);
-            
-            if (!video.classList.contains('hidden')) {
-                // Capture from video
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0);
-                imageSource = canvas;
-            } else {
-                imageSource = preview;
-            }
-            
-            // Process with MediaPipe
-            AppState.pose.onResults((results) => {
-                processQuickResults(results);
-            });
-            await AppState.pose.send({image: imageSource});
-        }
-
-        // Process Results
-        function processQuickResults(results) {
-            hideLoading();
-            
-            if (!results.poseLandmarks) {
-                alert('No pose detected. Please ensure full body is visible.');
-                return;
-            }
-            
-            // Calculate basic metrics
-            const landmarks = results.poseLandmarks;
-            const metrics = calculateBasicMetrics(landmarks);
-            
-            // Calculate score
-            let score = 100;
-            score -= Math.min(metrics.shoulderLevel * 5, 15);
-            score -= Math.min(metrics.headTilt * 3, 10);
-            score -= Math.min(metrics.hipLevel * 5, 15);
-            score = Math.max(0, Math.round(score));
-            
-            // Display results
-            document.getElementById('quick-score').textContent = score;
-            
-            // Display metrics
-            const metricsHTML = `
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Head Alignment</span>
-                        <span class="metric-value">
-                            ${metrics.headTilt.toFixed(1)}°
-                            <span class="severity-indicator severity-${getSeverity(metrics.headTilt, [2, 5, 10])}"></span>
-                        </span>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Shoulder Level</span>
-                        <span class="metric-value">
-                            ${metrics.shoulderLevel.toFixed(1)} cm
-                            <span class="severity-indicator severity-${getSeverity(metrics.shoulderLevel, [1, 2, 3])}"></span>
-                        </span>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Hip Level</span>
-                        <span class="metric-value">
-                            ${metrics.hipLevel.toFixed(1)} cm
-                            <span class="severity-indicator severity-${getSeverity(metrics.hipLevel, [1, 2, 3])}"></span>
-                        </span>
-                    </div>
-                </div>
-            `;
-            document.getElementById('quick-metrics').innerHTML = metricsHTML;
-            
-            // Generate recommendations
-            const recommendations = generateQuickRecommendations(metrics);
-            document.getElementById('quick-recommendations').innerHTML = recommendations;
-            
-            // Show results
-            document.getElementById('quick-results').classList.remove('hidden');
-            
-            // Draw skeleton on canvas
-            const canvas = document.getElementById('quick-canvas');
-            const ctx = canvas.getContext('2d');
-            const img = document.getElementById('quick-preview');
-            
-            canvas.width = img.width;
-            canvas.height = img.height;
-            canvas.style.position = 'absolute';
-            canvas.style.top = '0';
-            canvas.style.left = '0';
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            
-            drawConnectors(ctx, landmarks, POSE_CONNECTIONS, {color: '#667eea', lineWidth: 2});
-            drawLandmarks(ctx, landmarks, {color: '#764ba2', radius: 3});
-        }
-
-        function processAdvancedResults(results, view) {
-            hideLoading();
-            
-            if (!results.poseLandmarks) {
-                alert(`No pose detected in ${view} view. Please ensure full body is visible.`);
-                return;
-            }
-            
-            // Store landmarks
-            AppState.analysisData.advanced[view] = results.poseLandmarks;
-            
-            // Update status
-            document.getElementById(`advanced-${view}-status`).textContent = '✅';
-            document.getElementById(`advanced-${view}-card`).classList.add('completed');
-            AppState.uploadedViews.advanced[view] = true;
-            
-            // Draw skeleton
-            const canvas = document.getElementById(`advanced-${view}-canvas`);
-            const ctx = canvas.getContext('2d');
-            const img = document.getElementById(`advanced-${view}-preview`);
-            
-            canvas.width = img.width;
-            canvas.height = img.height;
-            
-            drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#667eea', lineWidth: 2});
-            drawLandmarks(ctx, results.poseLandmarks, {color: '#764ba2', radius: 3});
-            
-            // Check if all views complete
-            if (AppState.uploadedViews.advanced.front && 
-                AppState.uploadedViews.advanced.side && 
-                AppState.uploadedViews.advanced.back) {
-                performAdvancedAnalysis();
-            }
-        }
-
-        // Calculations
-        function calculateBasicMetrics(landmarks) {
-            const leftShoulder = landmarks[11];
-            const rightShoulder = landmarks[12];
-            const leftEye = landmarks[2];
-            const rightEye = landmarks[5];
-            const leftHip = landmarks[23];
-            const rightHip = landmarks[24];
-            
-            return {
-                headTilt: Math.abs(Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * 180 / Math.PI),
-                shoulderLevel: Math.abs(leftShoulder.y - rightShoulder.y) * 100,
-                hipLevel: Math.abs(leftHip.y - rightHip.y) * 100
-            };
-        }
-
-        function performAdvancedAnalysis() {
-            // Calculate comprehensive metrics
-            const frontData = analyzeView(AppState.analysisData.advanced.front, 'front');
-            const sideData = analyzeView(AppState.analysisData.advanced.side, 'side');
-            const backData = analyzeView(AppState.analysisData.advanced.back, 'back');
-            
-            // Calculate overall score
-            let score = 100;
-            // Deduct points based on deviations
-            score -= Math.min(frontData.totalDeviation, 25);
-            score -= Math.min(sideData.totalDeviation, 25);
-            score -= Math.min(backData.totalDeviation, 25);
-            score = Math.max(0, Math.round(score));
-            
-            // Display score
-            document.getElementById('advanced-score').textContent = score;
-            
-            // Display metrics
-            displayAdvancedMetrics(frontData, sideData, backData);
-            
-            // Create charts
-            createForceChart(frontData);
-            createMovementChart(frontData, sideData);
-            
-            // Risk assessment
-            displayRiskAssessment(frontData, sideData, backData);
-            
-            // Show results
-            document.getElementById('advanced-results').classList.remove('hidden');
-        }
-
-        function analyzeView(landmarks, view) {
-            const data = {
-                view: view,
-                totalDeviation: 0
-            };
-            
-            if (view === 'front') {
-                // Q-Angle calculation
-                const hip = landmarks[23];
-                const knee = landmarks[25];
-                const ankle = landmarks[27];
-                data.qAngle = calculateAngle(hip, knee, ankle);
-                
-                // Shoulder symmetry
-                const leftShoulder = landmarks[11];
-                const rightShoulder = landmarks[12];
-                data.shoulderAsymmetry = Math.abs(leftShoulder.y - rightShoulder.y) * 100;
-                
-                // Hip symmetry
-                const leftHip = landmarks[23];
-                const rightHip = landmarks[24];
-                data.hipAsymmetry = Math.abs(leftHip.y - rightHip.y) * 100;
-                
-                // Weight distribution estimate
-                const com = calculateCenterOfMass(landmarks);
-                const midFoot = (landmarks[31].x + landmarks[32].x) / 2;
-                data.weightDistribution = {
-                    left: 50 - (com.x - midFoot) * 100,
-                    right: 50 + (com.x - midFoot) * 100
-                };
-                
-                data.totalDeviation = data.shoulderAsymmetry * 2 + data.hipAsymmetry * 2 + 
-                                     Math.abs(data.qAngle - 15);
-            }
-            
-            else if (view === 'side') {
-                // Forward head posture
-                const ear = landmarks[7] || landmarks[8];
-                const shoulder = landmarks[11] || landmarks[12];
-                data.forwardHead = (ear.x - shoulder.x) * 100;
-                
-                // Pelvic tilt estimation
-                const hip = landmarks[23] || landmarks[24];
-                const knee = landmarks[25] || landmarks[26];
-                data.pelvicAngle = Math.atan2(knee.y - hip.y, knee.x - hip.x) * 180 / Math.PI;
-                
-                // Kyphosis estimation
-                const upperBack = landmarks[11];
-                const midBack = interpolatePoint(landmarks[11], landmarks[23], 0.5);
-                const lowerBack = landmarks[23];
-                data.kyphosisAngle = calculateAngle(upperBack, midBack, lowerBack);
-                
-                data.totalDeviation = Math.abs(data.forwardHead) * 3 + 
-                                     Math.abs(data.pelvicAngle - 10) + 
-                                     Math.abs(data.kyphosisAngle - 160) * 0.5;
-            }
-            
-            else if (view === 'back') {
-                // Scoliosis detection
-                const spine = extractSpinePoints(landmarks);
-                data.spinalDeviation = calculateMaxDeviation(spine) * 100;
-                
-                // Scapular symmetry
-                const leftShoulder = landmarks[11];
-                const rightShoulder = landmarks[12];
-                const leftElbow = landmarks[13];
-                const rightElbow = landmarks[14];
-                data.scapularAsymmetry = Math.abs(
-                    (leftElbow.x - leftShoulder.x) - (rightElbow.x - rightShoulder.x)
-                ) * 100;
-                
-                data.totalDeviation = data.spinalDeviation * 2 + data.scapularAsymmetry * 3;
-            }
-            
-            return data;
-        }
-
-        // Utility Functions
-        function calculateAngle(p1, p2, p3) {
-            const angle1 = Math.atan2(p1.y - p2.y, p1.x - p2.x);
-            const angle2 = Math.atan2(p3.y - p2.y, p3.x - p2.x);
-            let angle = Math.abs(angle2 - angle1) * 180 / Math.PI;
-            if (angle > 180) angle = 360 - angle;
-            return angle;
-        }
-
-        function calculateCenterOfMass(landmarks) {
-            const segments = {
-                head: { weight: 0.08, point: landmarks[0] },
-                trunk: { weight: 0.46, point: interpolatePoint(landmarks[11], landmarks[23], 0.5) },
-                leftArm: { weight: 0.05, point: landmarks[15] },
-                rightArm: { weight: 0.05, point: landmarks[16] },
-                leftLeg: { weight: 0.18, point: landmarks[27] },
-                rightLeg: { weight: 0.18, point: landmarks[28] }
-            };
-            
-            let comX = 0, comY = 0;
-            Object.values(segments).forEach(segment => {
-                comX += segment.point.x * segment.weight;
-                comY += segment.point.y * segment.weight;
-            });
-            
-            return { x: comX, y: comY };
-        }
-
-        function interpolatePoint(p1, p2, ratio) {
-            return {
-                x: p1.x + (p2.x - p1.x) * ratio,
-                y: p1.y + (p2.y - p1.y) * ratio
-            };
-        }
-
-        function extractSpinePoints(landmarks) {
-            return [
-                landmarks[0],
-                interpolatePoint(landmarks[0], landmarks[11], 0.5),
-                landmarks[11],
-                interpolatePoint(landmarks[11], landmarks[23], 0.5),
-                landmarks[23],
-                landmarks[24]
-            ];
-        }
-
-        function calculateMaxDeviation(points) {
-            if (points.length < 3) return 0;
-            
-            let maxDev = 0;
-            for (let i = 1; i < points.length - 1; i++) {
-                const expectedX = (points[0].x + points[points.length - 1].x) / 2;
-                const deviation = Math.abs(points[i].x - expectedX);
-                maxDev = Math.max(maxDev, deviation);
-            }
-            return maxDev;
-        }
-
-        function getSeverity(value, thresholds) {
-            if (value < thresholds[0]) return 'optimal';
-            if (value < thresholds[1]) return 'mild';
-            if (value < thresholds[2]) return 'moderate';
-            return 'severe';
-        }
-
-        // Display Functions
-        function displayAdvancedMetrics(frontData, sideData, backData) {
-            const metricsHTML = `
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Q-Angle</span>
-                        <span class="metric-value">
-                            ${frontData.qAngle.toFixed(1)}°
-                            <span class="severity-indicator severity-${getSeverity(Math.abs(frontData.qAngle - 15), [3, 5, 8])}"></span>
-                        </span>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Forward Head</span>
-                        <span class="metric-value">
-                            ${sideData.forwardHead.toFixed(1)} cm
-                            <span class="severity-indicator severity-${getSeverity(Math.abs(sideData.forwardHead), [2, 4, 6])}"></span>
-                        </span>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Shoulder Asymmetry</span>
-                        <span class="metric-value">
-                            ${frontData.shoulderAsymmetry.toFixed(1)} cm
-                            <span class="severity-indicator severity-${getSeverity(frontData.shoulderAsymmetry, [1, 2, 3])}"></span>
-                        </span>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Spinal Deviation</span>
-                        <span class="metric-value">
-                            ${backData.spinalDeviation.toFixed(1)} cm
-                            <span class="severity-indicator severity-${getSeverity(backData.spinalDeviation, [2, 3, 4])}"></span>
-                        </span>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Pelvic Angle</span>
-                        <span class="metric-value">
-                            ${sideData.pelvicAngle.toFixed(1)}°
-                            <span class="severity-indicator severity-${getSeverity(Math.abs(sideData.pelvicAngle - 10), [5, 10, 15])}"></span>
-                        </span>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Kyphosis Angle</span>
-                        <span class="metric-value">
-                            ${sideData.kyphosisAngle.toFixed(1)}°
-                            <span class="severity-indicator severity-${getSeverity(Math.abs(sideData.kyphosisAngle - 160), [10, 20, 30])}"></span>
-                        </span>
-                    </div>
-                </div>
-            `;
-            document.getElementById('advanced-metrics').innerHTML = metricsHTML;
-        }
-
-        function createForceChart(frontData) {
-            const ctx = document.getElementById('force-chart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Left Foot', 'Right Foot'],
-                    datasets: [{
-                        label: 'Weight Distribution (%)',
-                        data: [frontData.weightDistribution.left, frontData.weightDistribution.right],
-                        backgroundColor: ['#667eea', '#764ba2']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100
-                        }
-                    }
-                }
-            });
-        }
-
-        function createMovementChart(frontData, sideData) {
-            const ctx = document.getElementById('movement-chart').getContext('2d');
-            
-            // Predict movement quality based on postural data
-            const predictions = {
-                'Squat': 100 - Math.min(frontData.shoulderAsymmetry * 5 + Math.abs(frontData.qAngle - 15) * 2, 40),
-                'Lunge': 100 - Math.min(frontData.hipAsymmetry * 5 + Math.abs(frontData.qAngle - 15) * 3, 40),
-                'Overhead': 100 - Math.min(Math.abs(sideData.forwardHead) * 3 + frontData.shoulderAsymmetry * 4, 40),
-                'Balance': 100 - Math.min(frontData.totalDeviation * 0.5, 30),
-                'Rotation': 100 - Math.min(backData.spinalDeviation * 3, 30),
-                'Flexion': 100 - Math.min(Math.abs(sideData.kyphosisAngle - 160) * 1.5, 30)
-            };
-            
-            new Chart(ctx, {
-                type: 'radar',
-                data: {
-                    labels: Object.keys(predictions),
-                    datasets: [{
-                        label: 'Movement Quality Prediction',
-                        data: Object.values(predictions),
-                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
-                        borderColor: '#667eea',
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        r: {
-                            beginAtZero: true,
-                            max: 100
-                        }
-                    }
-                }
-            });
-        }
-
-        function displayRiskAssessment(frontData, sideData, backData) {
-            // Calculate risk scores
-            const risks = {
-                'Low Back Pain': Math.min(
-                    Math.abs(sideData.pelvicAngle - 10) * 3 + 
-                    Math.abs(sideData.forwardHead) * 2, 
-                    100
-                ),
-                'Neck Pain': Math.min(
-                    Math.abs(sideData.forwardHead) * 5 + 
-                    frontData.shoulderAsymmetry * 3, 
-                    100
-                ),
-                'Knee Pain': Math.min(
-                    Math.abs(frontData.qAngle - 15) * 4 + 
-                    frontData.hipAsymmetry * 2, 
-                    100
-                ),
-                'Shoulder Impingement': Math.min(
-                    frontData.shoulderAsymmetry * 4 + 
-                    Math.abs(sideData.forwardHead) * 2, 
-                    100
-                )
-            };
-            
-            let html = '<div class="metrics-grid">';
-            Object.entries(risks).forEach(([condition, risk]) => {
-                const severity = risk < 30 ? 'optimal' : risk < 60 ? 'mild' : 'moderate';
-                html += `
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <span class="metric-title">${condition}</span>
-                            <span class="metric-value">
-                                ${risk.toFixed(0)}%
-                                <span class="severity-indicator severity-${severity}"></span>
-                            </span>
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            
-            document.getElementById('risk-assessment').innerHTML = html;
-        }
-
-        function generateQuickRecommendations(metrics) {
-            let recommendations = '<ul style="list-style: none; padding: 0;">';
-            
-            if (metrics.headTilt > 5) {
-                recommendations += '<li style="padding: 8px 0;">🎯 Practice neck stretches to improve head alignment</li>';
-            }
-            
-            if (metrics.shoulderLevel > 2) {
-                recommendations += '<li style="padding: 8px 0;">💪 Strengthen weaker shoulder with targeted exercises</li>';
-            }
-            
-            if (metrics.hipLevel > 2) {
-                recommendations += '<li style="padding: 8px 0;">🦵 Work on hip stability and core strengthening</li>';
-            }
-            
-            recommendations += '<li style="padding: 8px 0;">🧘 Daily posture awareness exercises recommended</li>';
-            recommendations += '</ul>';
-            
-            return recommendations;
-        }
-
-        // Drawing Functions
-        function drawConnectors(ctx, landmarks, connections, style) {
-            ctx.strokeStyle = style.color;
-            ctx.lineWidth = style.lineWidth;
-            
-            connections.forEach(([start, end]) => {
-                const startPoint = landmarks[start];
-                const endPoint = landmarks[end];
-                
-                if (startPoint && endPoint) {
-                    ctx.beginPath();
-                    ctx.moveTo(startPoint.x * ctx.canvas.width, startPoint.y * ctx.canvas.height);
-                    ctx.lineTo(endPoint.x * ctx.canvas.width, endPoint.y * ctx.canvas.height);
-                    ctx.stroke();
-                }
-            });
-        }
-
-        function drawLandmarks(ctx, landmarks, style) {
-            ctx.fillStyle = style.color;
-            
-            landmarks.forEach(landmark => {
-                if (landmark) {
-                    ctx.beginPath();
-                    ctx.arc(
-                        landmark.x * ctx.canvas.width,
-                        landmark.y * ctx.canvas.height,
-                        style.radius,
-                        0,
-                        2 * Math.PI
-                    );
-                    ctx.fill();
-                }
-            });
-        }
-
-        // UI Helper Functions
-        function showTab(mode, tabName) {
-            // Hide all tabs
-            document.querySelectorAll(`#${mode}-mode .tab-content`).forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Remove active from all buttons
-            document.querySelectorAll(`#${mode}-mode .tab-btn`).forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Show selected tab
-            document.getElementById(`${mode}-${tabName}`).classList.add('active');
-            
-            // Activate button
-            const activeBtn = Array.from(document.querySelectorAll(`#${mode}-mode .tab-btn`))
-                .find(btn => btn.textContent.toLowerCase().includes(tabName.replace('-', ' ')));
-            if (activeBtn) activeBtn.classList.add('active');
-        }
-
-        function showLoading() {
-            document.getElementById('loading').classList.add('active');
-        }
-
-        function hideLoading() {
-            document.getElementById('loading').classList.remove('active');
-        }
-
-        // Action Functions
-        function saveQuickResults() {
-            const data = {
-                timestamp: new Date().toISOString(),
-                score: document.getElementById('quick-score').textContent,
-                mode: 'quick'
-            };
-            console.log('Saving results:', data);
-            alert('Results saved! (In production, this would save to database)');
-        }
-
-        function resetQuickAnalysis() {
-            // Clear results
-            document.getElementById('quick-results').classList.add('hidden');
-            document.getElementById('quick-preview').classList.add('hidden');
-            document.getElementById('quick-camera').classList.add('hidden');
-            document.getElementById('quick-analyze-btn').classList.add('hidden');
-            
-            // Clear canvas
-            const canvas = document.getElementById('quick-canvas');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Close camera
-            closeCamera();
-        }
-
-        function resetAdvancedAnalysis() {
-            // Reset state
-            AppState.analysisData.advanced = {
-                front: null,
-                side: null,
-                back: null
-            };
-            AppState.uploadedViews.advanced = {
-                front: false,
-                side: false,
-                back: false
-            };
-            
-            // Reset UI
-            ['front', 'side', 'back'].forEach(view => {
-                document.getElementById(`advanced-${view}-preview`).classList.add('hidden');
-                document.getElementById(`advanced-${view}-status`).textContent = '📷';
-                document.getElementById(`advanced-${view}-card`).classList.remove('completed');
-                
-                // Clear canvas
-                const canvas = document.getElementById(`advanced-${view}-canvas`);
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            });
-            
-            // Hide results
-            document.getElementById('advanced-results').classList.add('hidden');
-        }
-
-        function generateClinicalReport() {
-            showLoading();
-            setTimeout(() => {
-                hideLoading();
-                alert('Clinical report generated! This would create a detailed PDF with all measurements, risk assessments, and exercise prescriptions.');
-            }, 2000);
-        }
-
-        function exportBiomechanics() {
-            const exportData = {
-                timestamp: new Date().toISOString(),
-                mode: 'advanced',
-                analysisData: AppState.analysisData.advanced
-            };
-            
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const blob = new Blob([dataStr], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'posture-analysis-' + Date.now() + '.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set today's date for clinical assessment
-            const today = new Date().toISOString().split('T')[0];
-            const assessmentDate = document.getElementById('assessment-date');
-            if (assessmentDate) assessmentDate.value = today;
-            
-            // Add touch event handling for mobile
-            let touchStartY = 0;
-            document.addEventListener('touchstart', (e) => {
-                touchStartY = e.touches[0].clientY;
-            }, { passive: true });
-            
-            document.addEventListener('touchmove', (e) => {
-                const touchY = e.touches[0].clientY;
-                const scrollTop = window.scrollY;
-                
-                // Prevent overscroll on iOS
-                if (scrollTop === 0 && touchY > touchStartY) {
-                    e.preventDefault();
-                }
-            }, { passive: false });
-        });
-
-        // Service Worker Registration (for PWA support)
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(() => {
-                console.log('Service Worker registration failed');
-            });
-        }
-    </script>
 </body>
 </html>

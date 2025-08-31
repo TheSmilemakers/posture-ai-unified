@@ -81,9 +81,9 @@
 <body>
     <div class="app-container">
         <!-- Clinical Testing Disclaimer -->
-        <div class="clinical-disclaimer">
-            <div class="disclaimer-content">
-                <h3>⚠️ CLINICAL TESTING VERSION - IMPORTANT NOTICE</h3>
+        <div class="clinical-disclaimer modal is-open" role="dialog" aria-modal="true" aria-labelledby="disc-title">
+            <div class="disclaimer-content modal__panel">
+                <h3 id="disc-title">⚠️ CLINICAL TESTING VERSION - IMPORTANT NOTICE</h3>
                 <p><strong>This is a testing version for clinical evaluation purposes only.</strong></p>
                 <ul>
                     <li>All clients must provide written informed consent before use</li>
@@ -92,7 +92,7 @@
                     <li>Results should be verified by qualified healthcare professionals</li>
                     <li>By proceeding, you confirm patient consent has been obtained</li>
                 </ul>
-                <button class="btn btn-warning">
+                <button class="btn btn--primary" data-close-modal>
                     I Understand - Proceed with Testing
                 </button>
             </div>
@@ -140,7 +140,11 @@
             <div class="mode-grid">
                 <!-- Quick Assessment Mode -->
                 <div class="mode-card" data-mode="quick">
-                    <span class="mode-icon">📱</span>
+                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <!-- Mobile phone icon -->
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                        <line x1="12" y1="18" x2="12.01" y2="18"/>
+                    </svg>
                     <h3 class="mode-title">Quick Assessment</h3>
                     <p class="mode-description">
                         Fast, mobile-optimized posture check with instant results
@@ -155,7 +159,10 @@
 
                 <!-- Clinical Assessment Mode -->
                 <div class="mode-card" data-mode="clinical">
-                    <span class="mode-icon">🏥</span>
+                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <!-- Medical cross icon -->
+                        <path d="M9 2v7H2v6h7v7h6v-7h7V9h-7V2H9z"/>
+                    </svg>
                     <h3 class="mode-title">Clinical Assessment</h3>
                     <p class="mode-description">
                         Complete clinical workflow with detailed documentation
@@ -170,7 +177,10 @@
 
                 <!-- Advanced Biomechanics Mode -->
                 <div class="mode-card" data-mode="advanced">
-                    <span class="mode-icon">🔬</span>
+                    <svg class="mode-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <!-- Microscope icon -->
+                        <path d="M5.5 18H8.5M8.5 18V14M8.5 14L3 8.5C2 7.5 2 6 3 5L5 3C6 2 7.5 2 8.5 3L14 8.5M8.5 14H14M14 8.5L16 10.5M14 8.5V4M22 21L18 17M11 17C11 19.7614 8.76142 22 6 22C3.23858 22 1 19.7614 1 17C1 14.2386 3.23858 12 6 12C8.76142 12 11 14.2386 11 17Z"/>
+                    </svg>
                     <h3 class="mode-title">Advanced Biomechanics</h3>
                     <p class="mode-description">
                         Research-grade analysis with comprehensive metrics
@@ -209,19 +219,19 @@
                                 placeholder="Describe the main issues or concerns (e.g., neck pain, shoulder tension, back stiffness)" 
                                 rows="3" required></textarea>
                         </div>
-                        <button class="btn btn-primary" data-action="create-patient">Create Patient & Continue</button>
+                        <button class="btn btn--primary" data-action="create-patient">Create Patient & Continue</button>
                     </div>
                     
                     <!-- Anonymous Patient -->
                     <div class="patient-card">
                         <h3>Anonymous Assessment</h3>
                         <p>Proceed without creating a patient record</p>
-                        <button class="btn btn-secondary" data-action="skip-patient">Continue Anonymously</button>
+                        <button class="btn btn--ghost" data-action="skip-patient">Continue Anonymously</button>
                     </div>
                 </div>
                 
                 <div class="action-buttons">
-                    <button class="btn btn-secondary" data-action="back-to-modes">Back to Mode Selection</button>
+                    <button class="btn btn--ghost" data-action="back-to-modes">Back to Mode Selection</button>
                 </div>
             </div>
         </div>
@@ -253,18 +263,42 @@
                     
                     <div class="action-buttons mt-lg">
                         <button id="start-camera-quick" class="btn btn-large" data-action="start-camera" data-mode="quick">
-                            <span>📸</span>
+                            <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                <circle cx="12" cy="13" r="4"/>
+                            </svg>
                             <span>Use Camera</span>
                         </button>
                         <label id="upload-photo-quick" class="btn btn-large">
-                            <span>📁</span>
+                            <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                <polyline points="13 2 13 9 20 9"/>
+                            </svg>
                             <span>Upload Photo</span>
                             <input type="file" accept="image/*" data-mode="quick" style="display: none;">
                         </label>
                     </div>
                     
+                    <!-- CRITICAL FIX 2a: Patient Height Input for Real-World Calibration -->
+                    <div class="calibration-input mt-lg hidden" id="quick-calibration">
+                        <div class="form-group">
+                            <label for="quick-patient-height" class="form-label">Patient Height (cm)</label>
+                            <input type="number" 
+                                   id="quick-patient-height" 
+                                   class="form-input" 
+                                   min="120" 
+                                   max="220" 
+                                   value="170" 
+                                   placeholder="Enter height in cm"
+                                   required>
+                            <small class="form-help">Required for accurate biomechanical measurements</small>
+                        </div>
+                    </div>
+                    
                     <button id="quick-analyze-btn" class="btn btn-success btn-large btn-block mt-lg hidden" data-action="analyze-posture" data-mode="quick">
-                        <span>🔬</span>
+                        <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
                         <span>Analyze Posture</span>
                     </button>
                     
@@ -288,11 +322,19 @@
                         
                         <div class="action-buttons">
                             <button id="save-quick-results" class="btn" data-action="save-results" data-mode="quick">
-                                <span>💾</span>
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
                                 <span>Save Results</span>
                             </button>
-                            <button id="reset-quick-analysis" class="btn btn-secondary" data-action="reset-analysis" data-mode="quick">
-                                <span>🔄</span>
+                            <button id="reset-quick-analysis" class="btn btn--ghost" data-action="reset-analysis" data-mode="quick">
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/>
+                                    <polyline points="1 20 1 14 7 14"/>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                </svg>
                                 <span>New Analysis</span>
                             </button>
                         </div>
@@ -339,6 +381,19 @@
                                     <option value="3" selected>3</option>
                                 </select>
                             </div>
+                            <!-- CRITICAL FIX 2a: Patient Height Input for Clinical Mode -->
+                            <div class="form-group">
+                                <label for="clinical-patient-height" class="form-label">Patient Height (cm)</label>
+                                <input type="number" 
+                                       id="clinical-patient-height" 
+                                       class="form-input" 
+                                       min="120" 
+                                       max="220" 
+                                       value="170" 
+                                       placeholder="Enter height in cm" 
+                                       required>
+                                <small class="form-help">Required for accurate biomechanical measurements</small>
+                            </div>
                             <button type="button" id="next-to-assessment" class="btn btn-large" data-action="show-tab" data-mode="clinical" data-tab="assessment">
                                 Next: Assessment
                             </button>
@@ -357,10 +412,35 @@
                                     <span class="status-icon" id="clinical-front-status">📷</span>
                                     Front View
                                 </h3>
-                                <div class="upload-area">
-                                    <input type="file" accept="image/*" data-view="front" data-mode="clinical">
-                                    <p style="font-size: 2rem;">👤</p>
-                                    <p>Click to upload front view</p>
+                                <div class="upload-container">
+                                    <div class="upload-area" id="clinical-front-upload-area">
+                                        <input type="file" accept="image/*" capture="environment" data-view="front" data-mode="clinical">
+                                        <div class="upload-content">
+                                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="17 8 12 3 7 8"/>
+                                                <line x1="12" y1="3" x2="12" y2="15"/>
+                                            </svg>
+                                            <p class="upload-text">Drag & drop or click to browse</p>
+                                            <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                        </div>
+                                    </div>
+                                    <div class="upload-actions">
+                                        <button class="btn btn-icon" data-action="camera-capture" data-view="front" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                                <circle cx="12" cy="13" r="4"/>
+                                            </svg>
+                                            <span>Take Photo</span>
+                                        </button>
+                                        <button class="btn btn-icon btn--ghost" data-action="file-browse" data-view="front" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                                <polyline points="13 2 13 9 20 9"/>
+                                            </svg>
+                                            <span>Upload File</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <img id="clinical-front-preview" class="uploaded-image hidden">
                                 <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
@@ -372,10 +452,35 @@
                                     <span class="status-icon" id="clinical-side-status">📷</span>
                                     Side View
                                 </h3>
-                                <div class="upload-area">
-                                    <input type="file" accept="image/*" data-view="side" data-mode="clinical">
-                                    <p style="font-size: 2rem;">🚶</p>
-                                    <p>Click to upload side view</p>
+                                <div class="upload-container">
+                                    <div class="upload-area" id="clinical-side-upload-area">
+                                        <input type="file" accept="image/*" capture="environment" data-view="side" data-mode="clinical">
+                                        <div class="upload-content">
+                                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="17 8 12 3 7 8"/>
+                                                <line x1="12" y1="3" x2="12" y2="15"/>
+                                            </svg>
+                                            <p class="upload-text">Drag & drop or click to browse</p>
+                                            <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                        </div>
+                                    </div>
+                                    <div class="upload-actions">
+                                        <button class="btn btn-icon" data-action="camera-capture" data-view="side" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                                <circle cx="12" cy="13" r="4"/>
+                                            </svg>
+                                            <span>Take Photo</span>
+                                        </button>
+                                        <button class="btn btn-icon btn--ghost" data-action="file-browse" data-view="side" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                                <polyline points="13 2 13 9 20 9"/>
+                                            </svg>
+                                            <span>Upload File</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <img id="clinical-side-preview" class="uploaded-image hidden">
                                 <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
@@ -387,10 +492,35 @@
                                     <span class="status-icon" id="clinical-back-status">📷</span>
                                     Back View
                                 </h3>
-                                <div class="upload-area">
-                                    <input type="file" accept="image/*" data-view="back" data-mode="clinical">
-                                    <p style="font-size: 2rem;">🔄</p>
-                                    <p>Click to upload back view</p>
+                                <div class="upload-container">
+                                    <div class="upload-area" id="clinical-back-upload-area">
+                                        <input type="file" accept="image/*" capture="environment" data-view="back" data-mode="clinical">
+                                        <div class="upload-content">
+                                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="17 8 12 3 7 8"/>
+                                                <line x1="12" y1="3" x2="12" y2="15"/>
+                                            </svg>
+                                            <p class="upload-text">Drag & drop or click to browse</p>
+                                            <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                        </div>
+                                    </div>
+                                    <div class="upload-actions">
+                                        <button class="btn btn-icon" data-action="camera-capture" data-view="back" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                                <circle cx="12" cy="13" r="4"/>
+                                            </svg>
+                                            <span>Take Photo</span>
+                                        </button>
+                                        <button class="btn btn-icon btn--ghost" data-action="file-browse" data-view="back" data-mode="clinical">
+                                            <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                                <polyline points="13 2 13 9 20 9"/>
+                                            </svg>
+                                            <span>Upload File</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <img id="clinical-back-preview" class="uploaded-image hidden">
                                 <textarea class="form-textarea mt-md" placeholder="Annotations..."></textarea>
@@ -398,7 +528,7 @@
                         </div>
 
                         <div class="action-buttons">
-                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="client-info">Previous</button>
+                            <button class="btn btn--ghost" data-action="show-tab" data-mode="clinical" data-tab="client-info">Previous</button>
                             <button class="btn" data-action="show-tab" data-mode="clinical" data-tab="north-star">Next: North Star</button>
                         </div>
                     </div>
@@ -448,7 +578,7 @@
                         </div>
                         
                         <div class="action-buttons">
-                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="assessment">Previous</button>
+                            <button class="btn btn--ghost" data-action="show-tab" data-mode="clinical" data-tab="assessment">Previous</button>
                             <button class="btn" data-action="show-tab" data-mode="clinical" data-tab="release">Next: Release</button>
                         </div>
                     </div>
@@ -528,7 +658,7 @@
                         </div>
                         
                         <div class="action-buttons">
-                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="north-star">Previous</button>
+                            <button class="btn btn--ghost" data-action="show-tab" data-mode="clinical" data-tab="north-star">Previous</button>
                             <button class="btn" data-action="show-tab" data-mode="clinical" data-tab="reset">Next: Reset</button>
                         </div>
                     </div>
@@ -631,7 +761,7 @@
                         </div>
                         
                         <div class="action-buttons">
-                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="release">Previous</button>
+                            <button class="btn btn--ghost" data-action="show-tab" data-mode="clinical" data-tab="release">Previous</button>
                             <button class="btn" data-action="show-tab" data-mode="clinical" data-tab="rebuild">Next: Rebuild</button>
                         </div>
                     </div>
@@ -755,7 +885,7 @@
                         </div>
                         
                         <div class="action-buttons">
-                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="reset">Previous</button>
+                            <button class="btn btn--ghost" data-action="show-tab" data-mode="clinical" data-tab="reset">Previous</button>
                             <button class="btn" data-action="show-tab" data-mode="clinical" data-tab="summary">Next: Summary</button>
                         </div>
                     </div>
@@ -834,13 +964,23 @@
                         </div>
                         
                         <div class="action-buttons">
-                            <button class="btn btn-secondary" data-action="show-tab" data-mode="clinical" data-tab="rebuild">Previous</button>
+                            <button class="btn btn--ghost" data-action="show-tab" data-mode="clinical" data-tab="rebuild">Previous</button>
                             <button id="save-clinical-assessment" class="btn" data-action="save-clinical" data-mode="clinical">
-                                <span>💾</span>
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
                                 <span>Save Assessment</span>
                             </button>
-                            <button id="generate-clinical-pdf" class="btn btn-success" data-action="generate-clinical-report" data-mode="clinical">
-                                <span>📄</span>
+                            <button id="generate-clinical-pdf" class="btn success" data-action="generate-clinical-report" data-mode="clinical">
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                    <polyline points="10 9 9 9 8 9"/>
+                                </svg>
                                 <span>Generate PDF Report</span>
                             </button>
                         </div>
@@ -854,6 +994,23 @@
                     <h2>Advanced Biomechanical Analysis</h2>
                     <p>Upload front, side, and back view photos for comprehensive analysis</p>
                     
+                    <!-- CRITICAL FIX 2a: Patient Height Input for Advanced Mode -->
+                    <div class="calibration-section">
+                        <h3>Calibration Settings</h3>
+                        <div class="form-group">
+                            <label for="advanced-patient-height" class="form-label">Patient Height (cm)</label>
+                            <input type="number" 
+                                   id="advanced-patient-height" 
+                                   class="form-input" 
+                                   min="120" 
+                                   max="220" 
+                                   value="170" 
+                                   placeholder="Enter height in cm" 
+                                   required>
+                            <small class="form-help">Critical for accurate biomechanical measurements and real-world calibration</small>
+                        </div>
+                    </div>
+                    
                     <div class="photo-grid">
                         <!-- Front View -->
                         <div class="photo-card" id="advanced-front-card">
@@ -861,10 +1018,35 @@
                                 <span class="status-icon" id="advanced-front-status">📷</span>
                                 Front View
                             </h3>
-                            <div class="upload-area">
-                                <input type="file" accept="image/*" data-view="front" data-mode="advanced">
-                                <p style="font-size: 2rem;">👤</p>
-                                <p>Click to upload front view</p>
+                            <div class="upload-container">
+                                <div class="upload-area" id="advanced-front-upload-area">
+                                    <input type="file" accept="image/*" capture="environment" data-view="front" data-mode="advanced">
+                                    <div class="upload-content">
+                                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="17 8 12 3 7 8"/>
+                                            <line x1="12" y1="3" x2="12" y2="15"/>
+                                        </svg>
+                                        <p class="upload-text">Drag & drop or click to browse</p>
+                                        <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                    </div>
+                                </div>
+                                <div class="upload-actions">
+                                    <button class="btn btn-icon" data-action="camera-capture" data-view="front" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                            <circle cx="12" cy="13" r="4"/>
+                                        </svg>
+                                        <span>Take Photo</span>
+                                    </button>
+                                    <button class="btn btn-icon btn--ghost" data-action="file-browse" data-view="front" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                            <polyline points="13 2 13 9 20 9"/>
+                                        </svg>
+                                        <span>Upload File</span>
+                                    </button>
+                                </div>
                             </div>
                             <img id="advanced-front-preview" class="uploaded-image hidden">
                             <canvas id="advanced-front-canvas" class="pose-canvas"></canvas>
@@ -876,10 +1058,35 @@
                                 <span class="status-icon" id="advanced-side-status">📷</span>
                                 Side View
                             </h3>
-                            <div class="upload-area">
-                                <input type="file" accept="image/*" data-view="side" data-mode="advanced">
-                                <p style="font-size: 2rem;">🚶</p>
-                                <p>Click to upload side view</p>
+                            <div class="upload-container">
+                                <div class="upload-area" id="advanced-side-upload-area">
+                                    <input type="file" accept="image/*" capture="environment" data-view="side" data-mode="advanced">
+                                    <div class="upload-content">
+                                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="17 8 12 3 7 8"/>
+                                            <line x1="12" y1="3" x2="12" y2="15"/>
+                                        </svg>
+                                        <p class="upload-text">Drag & drop or click to browse</p>
+                                        <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                    </div>
+                                </div>
+                                <div class="upload-actions">
+                                    <button class="btn btn-icon" data-action="camera-capture" data-view="side" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                            <circle cx="12" cy="13" r="4"/>
+                                        </svg>
+                                        <span>Take Photo</span>
+                                    </button>
+                                    <button class="btn btn-icon btn--ghost" data-action="file-browse" data-view="side" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                            <polyline points="13 2 13 9 20 9"/>
+                                        </svg>
+                                        <span>Upload File</span>
+                                    </button>
+                                </div>
                             </div>
                             <img id="advanced-side-preview" class="uploaded-image hidden">
                             <canvas id="advanced-side-canvas" class="pose-canvas"></canvas>
@@ -891,10 +1098,35 @@
                                 <span class="status-icon" id="advanced-back-status">📷</span>
                                 Back View
                             </h3>
-                            <div class="upload-area">
-                                <input type="file" accept="image/*" data-view="back" data-mode="advanced">
-                                <p style="font-size: 2rem;">🔄</p>
-                                <p>Click to upload back view</p>
+                            <div class="upload-container">
+                                <div class="upload-area" id="advanced-back-upload-area">
+                                    <input type="file" accept="image/*" capture="environment" data-view="back" data-mode="advanced">
+                                    <div class="upload-content">
+                                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="17 8 12 3 7 8"/>
+                                            <line x1="12" y1="3" x2="12" y2="15"/>
+                                        </svg>
+                                        <p class="upload-text">Drag & drop or click to browse</p>
+                                        <p class="upload-hint">PNG, JPG up to 10MB</p>
+                                    </div>
+                                </div>
+                                <div class="upload-actions">
+                                    <button class="btn btn-icon" data-action="camera-capture" data-view="back" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                            <circle cx="12" cy="13" r="4"/>
+                                        </svg>
+                                        <span>Take Photo</span>
+                                    </button>
+                                    <button class="btn btn-icon btn--ghost" data-action="file-browse" data-view="back" data-mode="advanced">
+                                        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                            <polyline points="13 2 13 9 20 9"/>
+                                        </svg>
+                                        <span>Upload File</span>
+                                    </button>
+                                </div>
                             </div>
                             <img id="advanced-back-preview" class="uploaded-image hidden">
                             <canvas id="advanced-back-canvas" class="pose-canvas"></canvas>
@@ -909,7 +1141,14 @@
                         </div>
 
                         <!-- Biomechanical Metrics -->
-                        <h3 class="mt-xl">📊 Biomechanical Analysis</h3>
+                        <h3 class="mt-xl">
+                            <svg class="inline-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="20" x2="18" y2="10"/>
+                                <line x1="12" y1="20" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="6" y2="14"/>
+                            </svg>
+                            Biomechanical Analysis
+                        </h3>
                         <div class="metrics-grid" id="advanced-metrics">
                             <!-- Metrics will be populated here -->
                         </div>
@@ -936,15 +1175,29 @@
 
                         <div class="action-buttons">
                             <button id="generate-clinical-report" class="btn" data-action="generate-report" data-mode="advanced">
-                                <span>📄</span>
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                    <polyline points="10 9 9 9 8 9"/>
+                                </svg>
                                 <span>Generate Clinical Report</span>
                             </button>
                             <button id="export-biomechanics" class="btn" data-action="export-data" data-mode="advanced">
-                                <span>📊</span>
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
                                 <span>Export Data</span>
                             </button>
-                            <button id="reset-advanced-analysis" class="btn btn-secondary" data-action="reset-analysis" data-mode="advanced">
-                                <span>🔄</span>
+                            <button id="reset-advanced-analysis" class="btn btn--ghost" data-action="reset-analysis" data-mode="advanced">
+                                <svg class="btn-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/>
+                                    <polyline points="1 20 1 14 7 14"/>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                </svg>
                                 <span>New Analysis</span>
                             </button>
                         </div>
@@ -962,5 +1215,38 @@
 
     <!-- JavaScript Modules -->
     <script type="module" src="assets/js/main.js"></script>
+    
+    <!-- Modal JavaScript -->
+    <script>
+    (function () {
+      const modal = document.querySelector('.clinical-disclaimer');
+      const panel = modal?.querySelector('.modal__panel');
+      const closeBtns = modal?.querySelectorAll('[data-close-modal]');
+      if (!modal || !panel) return;
+
+      let lastFocus = null;
+      function openModal() {
+        lastFocus = document.activeElement;
+        document.body.classList.add('modal-open');
+        modal.classList.add('is-open');
+        modal.removeAttribute('hidden');
+        panel.setAttribute('tabindex','-1');
+        panel.focus();
+      }
+      function closeModal() {
+        modal.classList.remove('is-open');
+        document.body.classList.remove('modal-open');
+        panel.removeAttribute('tabindex');
+        if (lastFocus) lastFocus.focus();
+        modal.setAttribute('hidden','');
+      }
+
+      // open on first load
+      openModal();
+      closeBtns.forEach(b => b.addEventListener('click', closeModal));
+      modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal(); });
+    }());
+    </script>
 </body>
 </html>

@@ -27,6 +27,26 @@ const authHeaders = {
     'Content-Type': 'application/json'
 };
 
+// CRITICAL FIX 1: Correct unit assignment mapping (same as ui-controller.js)
+// Replaces incorrect conditional logic that assigned "mm" to percentage measurements
+const MEASUREMENT_UNITS = {
+    // Angles - correctly assigned
+    'qAngle': 'degrees',
+    'pelvicAngle': 'degrees', 
+    'kyphosisAngle': 'degrees',
+    
+    // Asymmetries - FIXED: should be percent, not mm
+    'shoulderAsymmetry': 'percent',     // Was: 'mm' ❌ Now: 'percent' ✅
+    'hipAsymmetry': 'percent',          // Was: 'mm' ❌ Now: 'percent' ✅
+    'forwardHead': 'percent',           // Was: 'cm' ❌ Now: 'percent' ✅
+    'spinalDeviation': 'percent',       // Was: 'units' ❌ Now: 'percent' ✅
+    'scapularAsymmetry': 'percent',     // Was: 'units' ❌ Now: 'percent' ✅
+    
+    // Weight distribution - correctly assigned
+    'weightDistributionLeft': 'percent',
+    'weightDistributionRight': 'percent'
+};
+
 /**
  * Patient Management
  */
@@ -137,29 +157,63 @@ export async function storeAnalysisResults(assessmentId, analysisData) {
             // Advanced mode - process each view
             ['front', 'side', 'back'].forEach(view => {
                 const viewData = analysisData[view];
-                if (viewData && viewData.measurements) {
-                    viewData.measurements.forEach(m => {
-                        measurements.push({
-                            type: m.name,
-                            value: m.value,
-                            unit: m.unit || 'degrees',
-                            confidence: m.confidence || 0.9,
-                            viewType: view
+                if (viewData) {
+                    // Handle both old format (direct properties) and new format (measurements array)
+                    if (viewData.measurements && Array.isArray(viewData.measurements)) {
+                        // New format - use directly
+                        viewData.measurements.forEach(m => {
+                            measurements.push({
+                                type: m.type || m.name,  // Handle both property names
+                                value: parseFloat(m.value),
+                                unit: m.unit || 'degrees',
+                                confidence: m.confidence || 0.9,
+                                viewType: view
+                            });
                         });
-                    });
-                }
-                
-                // Add patterns
-                if (viewData && viewData.patterns) {
-                    viewData.patterns.forEach(p => {
-                        patterns.push({
-                            type: p.name,
-                            severity: p.severity,
-                            confidence: p.confidence || 0.85
+                    } else {
+                        // Old format - convert properties to measurements
+                        Object.entries(viewData).forEach(([key, value]) => {
+                            if (typeof value === 'number' && 
+                                key !== 'totalDeviation' && 
+                                key !== 'confidence' && 
+                                key !== 'stability') {
+                                measurements.push({
+                                    type: key,
+                                    value: parseFloat(value),
+                                    unit: MEASUREMENT_UNITS[key] || 'units',  // FIXED: Use correct unit mapping
+                                    confidence: viewData.confidence || 0.85,
+                                    viewType: view
+                                });
+                            }
                         });
-                    });
+                        
+                        // Handle weight distribution special case
+                        if (viewData.weightDistribution) {
+                            measurements.push(
+                                {
+                                    type: 'weight_distribution_left',
+                                    value: viewData.weightDistribution.left,
+                                    unit: 'percent',
+                                    confidence: 0.8,
+                                    viewType: view
+                                },
+                                {
+                                    type: 'weight_distribution_right',
+                                    value: viewData.weightDistribution.right,
+                                    unit: 'percent',
+                                    confidence: 0.8,
+                                    viewType: view
+                                }
+                            );
+                        }
+                    }
                 }
             });
+            
+            // Add any detected patterns
+            if (analysisData.patterns && Array.isArray(analysisData.patterns)) {
+                patterns = analysisData.patterns;
+            }
         }
         
         // Calculate overall score if available
@@ -285,6 +339,43 @@ export async function saveCompleteAssessment(assessmentData) {
         // Store analysis results
         const result = await storeAnalysisResults(assessment.id, assessmentData);
         
+        // Store exercise prescriptions if this is a clinical assessment
+        if (assessmentData.mode === 'clinical' && assessment.id) {
+            const prescriptionData = {
+                release: assessmentData.release || {},
+                reset: assessmentData.reset || {},
+                rebuild: assessmentData.rebuild || {}
+            };
+            
+            // Check if we have any exercises to save
+            const hasExercises = 
+                (prescriptionData.release.exercises?.length > 0) ||
+                (prescriptionData.reset.exercises?.length > 0) ||
+                (prescriptionData.rebuild.exercises?.length > 0);
+            
+            if (hasExercises) {
+                try {
+                    // Save exercise prescription to database
+                    const prescriptionResult = await saveExercisePrescription(
+                        assessment.id, 
+                        prescriptionData, 
+                        {
+                            clinicianId: assessmentData.clinicianId || null,
+                            sessionsPerWeek: parseInt(assessmentData.clientInfo?.sessions) || 3,
+                            notes: `Exercise prescription from ${assessmentData.mode} assessment`
+                        }
+                    );
+                    
+                    console.log('✅ Exercise prescription saved successfully:', prescriptionResult);
+                    
+                } catch (prescError) {
+                    console.error('Exercise prescription save failed:', prescError);
+                    // Don't fail the entire assessment for prescription errors - this is clinical data
+                    // but assessment data is still valuable without exercise prescription
+                }
+            }
+        }
+        
         return {
             success: true,
             patientId,
@@ -293,6 +384,109 @@ export async function saveCompleteAssessment(assessmentData) {
         };
     } catch (error) {
         console.error('Error saving complete assessment:', error);
+        throw error;
+    }
+}
+
+/**
+ * Upload photos to secure storage (replaces dangerous photo truncation)
+ */
+export async function uploadPhoto(assessmentId, viewType, imageData, annotation = '') {
+    try {
+        console.log(`Uploading ${viewType} photo for assessment ${assessmentId}...`);
+        
+        const response = await fetch(`${API_BASE}/photos/upload`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({
+                assessmentId,
+                viewType,
+                imageData,
+                annotation,
+                mimeType: 'image/jpeg'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to upload photo');
+        }
+        
+        console.log(`✅ ${viewType} photo uploaded successfully: ${data.photo.fileSize} bytes`);
+        return data.photo;
+        
+    } catch (error) {
+        console.error('Photo upload failed:', error);
+        throw error;
+    }
+}
+
+/**
+ * Upload multiple photos for an assessment
+ */
+export async function uploadAssessmentPhotos(assessmentId, photoData) {
+    const uploadResults = {};
+    const uploadErrors = [];
+    
+    for (const [viewType, data] of Object.entries(photoData)) {
+        if (data && data.imageData) {
+            try {
+                const result = await uploadPhoto(
+                    assessmentId, 
+                    viewType, 
+                    data.imageData, 
+                    data.annotation || ''
+                );
+                uploadResults[viewType] = result;
+            } catch (error) {
+                uploadErrors.push({
+                    viewType,
+                    error: error.message
+                });
+                console.error(`Failed to upload ${viewType} photo:`, error);
+            }
+        }
+    }
+    
+    return {
+        uploads: uploadResults,
+        errors: uploadErrors,
+        success: Object.keys(uploadResults).length > 0
+    };
+}
+
+/**
+ * Save exercise prescription to database (replaces console.log placeholder)
+ */
+export async function saveExercisePrescription(assessmentId, prescriptionData, options = {}) {
+    try {
+        console.log(`Saving exercise prescription for assessment ${assessmentId}...`);
+        
+        const response = await fetch(`${API_BASE}/exercises/prescribe`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({
+                assessmentId,
+                clinicianId: options.clinicianId || null,
+                prescriptionData,
+                sessionsPerWeek: options.sessionsPerWeek || 3,
+                durationWeeks: options.durationWeeks || 6,
+                notes: options.notes || ''
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to save exercise prescription');
+        }
+        
+        console.log(`✅ Exercise prescription saved: ${data.prescription.exerciseCount} exercises across ${Object.keys(data.prescription.categories).filter(cat => data.prescription.categories[cat] > 0).length} categories`);
+        return data.prescription;
+        
+    } catch (error) {
+        console.error('Exercise prescription save failed:', error);
         throw error;
     }
 }

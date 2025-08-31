@@ -633,3 +633,516 @@ export function base64ToBlob(base64, contentType = 'image/jpeg') {
     
     return new Blob(byteArrays, { type: contentType });
 }
+
+/**
+ * CRITICAL FIX 2b: Calibration Utility Functions
+ * These functions convert normalized MediaPipe coordinates to real-world clinical measurements
+ */
+
+/**
+ * Calibrate normalized MediaPipe coordinates to real-world measurements
+ * @param {number} normalizedValue - Value in 0-1 coordinate space
+ * @param {number} patientHeightCm - Patient height in centimeters  
+ * @param {Object} imageMetadata - Image dimensions {width, height}
+ * @returns {number} Real-world measurement in centimeters
+ */
+export function calibrateToRealWorld(normalizedValue, patientHeightCm, imageMetadata) {
+    if (!imageMetadata || !imageMetadata.height || !patientHeightCm) {
+        console.warn('calibrateToRealWorld: Missing calibration data, returning normalized value');
+        return Math.abs(normalizedValue) * 100; // Fallback to normalized scale
+    }
+    
+    // Assume full body visible with 10% margin for head/feet
+    // This is a simplified model - real clinical systems use reference objects
+    const bodyHeightInPixels = imageMetadata.height * 0.9;
+    const pixelsPerCm = bodyHeightInPixels / patientHeightCm;
+    const pixelDifference = Math.abs(normalizedValue) * imageMetadata.height;
+    
+    return pixelDifference / pixelsPerCm; // Real centimeters
+}
+
+/**
+ * Convert asymmetry measurement to percentage of body height
+ * @param {number} asymmetryCm - Asymmetry in centimeters
+ * @param {number} patientHeightCm - Patient height in centimeters
+ * @returns {number} Percentage of body height
+ */
+export function convertToBodyPercentage(asymmetryCm, patientHeightCm) {
+    if (!patientHeightCm || patientHeightCm <= 0) {
+        console.warn('convertToBodyPercentage: Invalid patient height, using normalized scale');
+        return asymmetryCm; // Return as-is if no valid height
+    }
+    
+    return (asymmetryCm / patientHeightCm) * 100;
+}
+
+/**
+ * Get patient height from appropriate input field
+ * @param {string} mode - Current analysis mode ('quick', 'clinical', 'advanced')
+ * @returns {number} Patient height in cm or default 170cm
+ */
+export function getPatientHeight(mode) {
+    const heightInput = document.getElementById(`${mode}-patient-height`);
+    
+    if (!heightInput) {
+        console.warn(`getPatientHeight: No height input found for mode '${mode}', using default 170cm`);
+        return 170;
+    }
+    
+    const height = parseInt(heightInput.value);
+    
+    // Validation: typical human height range 120-220cm
+    if (height >= 120 && height <= 220) {
+        return height;
+    } else {
+        console.warn(`getPatientHeight: Invalid height ${height}cm, using default 170cm`);
+        return 170; // Safe default
+    }
+}
+
+/**
+ * Get image metadata from preview element
+ * @param {string} elementId - ID of the image preview element
+ * @returns {Object|null} Image metadata {width, height} or null if not available
+ */
+export function getImageMetadata(elementId) {
+    const imageElement = document.getElementById(elementId);
+    
+    if (!imageElement || !imageElement.naturalWidth || !imageElement.naturalHeight) {
+        console.warn(`getImageMetadata: No valid image data found for element '${elementId}'`);
+        return null;
+    }
+    
+    return {
+        width: imageElement.naturalWidth,
+        height: imageElement.naturalHeight
+    };
+}
+
+/**
+ * Validate calibration data before processing
+ * @param {number} patientHeight - Patient height in cm
+ * @param {Object} imageMetadata - Image dimensions
+ * @returns {boolean} True if calibration data is valid
+ */
+export function validateCalibrationData(patientHeight, imageMetadata) {
+    if (!patientHeight || patientHeight < 120 || patientHeight > 220) {
+        console.error('Invalid patient height for calibration:', patientHeight);
+        return false;
+    }
+    
+    if (!imageMetadata || !imageMetadata.width || !imageMetadata.height) {
+        console.error('Invalid image metadata for calibration:', imageMetadata);
+        return false;
+    }
+    
+    if (imageMetadata.width < 100 || imageMetadata.height < 100) {
+        console.error('Image too small for reliable calibration:', imageMetadata);
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * ============================================
+ * ENHANCED CALIBRATION SYSTEM - VERSION 2.0
+ * Landmark-based clinical-grade calibration
+ * Added to fix the 90% frame assumption bug
+ * ============================================
+ */
+
+// MediaPipe landmark indices
+const POSE_LANDMARKS = {
+    NOSE: 0,
+    LEFT_EYE_INNER: 1,
+    LEFT_EYE: 2,
+    LEFT_EYE_OUTER: 3,
+    RIGHT_EYE_INNER: 4,
+    RIGHT_EYE: 5,
+    RIGHT_EYE_OUTER: 6,
+    LEFT_EAR: 7,
+    RIGHT_EAR: 8,
+    MOUTH_LEFT: 9,
+    MOUTH_RIGHT: 10,
+    LEFT_SHOULDER: 11,
+    RIGHT_SHOULDER: 12,
+    LEFT_ELBOW: 13,
+    RIGHT_ELBOW: 14,
+    LEFT_WRIST: 15,
+    RIGHT_WRIST: 16,
+    LEFT_PINKY: 17,
+    RIGHT_PINKY: 18,
+    LEFT_INDEX: 19,
+    RIGHT_INDEX: 20,
+    LEFT_THUMB: 21,
+    RIGHT_THUMB: 22,
+    LEFT_HIP: 23,
+    RIGHT_HIP: 24,
+    LEFT_KNEE: 25,
+    RIGHT_KNEE: 26,
+    LEFT_ANKLE: 27,
+    RIGHT_ANKLE: 28,
+    LEFT_HEEL: 29,
+    RIGHT_HEEL: 30,
+    LEFT_FOOT_INDEX: 31,
+    RIGHT_FOOT_INDEX: 32
+};
+
+/**
+ * Calculate calibration from patient height and detected landmarks
+ * FIXES: The critical 90% frame assumption bug
+ * @param {Array} landmarks - MediaPipe pose landmarks (33 points)
+ * @param {number} patientHeightCm - Patient height in centimeters
+ * @param {Object} imageMetadata - Image dimensions {width, height}
+ * @returns {Object} Calibration data with pixelsPerCm and confidence
+ */
+export function calculateLandmarkCalibration(landmarks, patientHeightCm, imageMetadata) {
+    // Default fallback calibration
+    const defaultCalibration = {
+        pixelsPerCm: (imageMetadata?.height * 0.9) / (patientHeightCm || 170),
+        confidence: 0.5,
+        method: 'frame-assumption',
+        error: 'Using fallback calibration'
+    };
+    
+    // Validate inputs
+    if (!landmarks || !Array.isArray(landmarks) || landmarks.length < 33) {
+        console.warn('calculateLandmarkCalibration: Invalid landmarks');
+        return defaultCalibration;
+    }
+    
+    if (!validateCalibrationData(patientHeightCm, imageMetadata)) {
+        return defaultCalibration;
+    }
+    
+    // Get key landmarks for height calculation
+    const nose = landmarks[POSE_LANDMARKS.NOSE];
+    const leftAnkle = landmarks[POSE_LANDMARKS.LEFT_ANKLE];
+    const rightAnkle = landmarks[POSE_LANDMARKS.RIGHT_ANKLE];
+    const leftHeel = landmarks[POSE_LANDMARKS.LEFT_HEEL];
+    const rightHeel = landmarks[POSE_LANDMARKS.RIGHT_HEEL];
+    
+    // Check minimum visibility
+    const minVisibility = 0.5;
+    if (!nose || !nose.visibility || nose.visibility < minVisibility) {
+        console.warn('calculateLandmarkCalibration: Head not visible enough');
+        return defaultCalibration;
+    }
+    
+    // Determine lower reference point
+    let lowerPoint;
+    let measurementType;
+    
+    // Try heels first (more accurate for full height)
+    if (leftHeel && rightHeel && 
+        leftHeel.visibility > minVisibility && 
+        rightHeel.visibility > minVisibility) {
+        lowerPoint = {
+            y: (leftHeel.y + rightHeel.y) / 2,
+            visibility: (leftHeel.visibility + rightHeel.visibility) / 2
+        };
+        measurementType = 'nose-to-heel';
+    }
+    // Fall back to ankles
+    else if (leftAnkle && rightAnkle && 
+             leftAnkle.visibility > minVisibility && 
+             rightAnkle.visibility > minVisibility) {
+        lowerPoint = {
+            y: (leftAnkle.y + rightAnkle.y) / 2,
+            visibility: (leftAnkle.visibility + rightAnkle.visibility) / 2
+        };
+        measurementType = 'nose-to-ankle';
+    }
+    else {
+        console.warn('calculateLandmarkCalibration: Lower body not visible enough');
+        return defaultCalibration;
+    }
+    
+    // Calculate body height in normalized coordinates (0-1)
+    const bodyHeightNormalized = Math.abs(nose.y - lowerPoint.y);
+    
+    // Validate person is reasonably sized in frame
+    if (bodyHeightNormalized < 0.3) {
+        console.warn('calculateLandmarkCalibration: Person too small in frame');
+        defaultCalibration.error = 'Person too small in frame';
+        return defaultCalibration;
+    }
+    
+    if (bodyHeightNormalized > 0.95) {
+        console.warn('calculateLandmarkCalibration: Person may be cut off');
+        defaultCalibration.error = 'Person may be cut off';
+        return defaultCalibration;
+    }
+    
+    // Convert to pixels
+    const bodyHeightPixels = bodyHeightNormalized * imageMetadata.height;
+    
+    // Apply anthropometric ratio
+    const anthropometricRatio = measurementType === 'nose-to-heel' ? 0.96 : 0.92;
+    const estimatedFullHeightPixels = bodyHeightPixels / anthropometricRatio;
+    const pixelsPerCm = estimatedFullHeightPixels / patientHeightCm;
+    
+    // Sanity check the result
+    if (pixelsPerCm < 0.5 || pixelsPerCm > 20) {
+        console.warn(`calculateLandmarkCalibration: Unusual result ${pixelsPerCm} px/cm`);
+        defaultCalibration.error = `Unusual calibration: ${pixelsPerCm.toFixed(2)} px/cm`;
+        return defaultCalibration;
+    }
+    
+    // Calculate confidence based on multiple factors
+    let confidence = 1.0;
+    
+    // Factor 1: Body size in frame (optimal is 60-80% of frame)
+    if (bodyHeightNormalized < 0.5) {
+        confidence *= 0.7;
+    } else if (bodyHeightNormalized > 0.85) {
+        confidence *= 0.8;
+    }
+    
+    // Factor 2: Landmark visibility
+    const avgVisibility = (nose.visibility + lowerPoint.visibility) / 2;
+    confidence *= avgVisibility;
+    
+    // Factor 3: Measurement point quality
+    if (measurementType === 'nose-to-ankle') {
+        confidence *= 0.9; // Slightly less accurate than heel
+    }
+    
+    return {
+        pixelsPerCm: pixelsPerCm,
+        confidence: Math.max(0.3, Math.min(1.0, confidence)),
+        method: 'landmark-based',
+        measurementType: measurementType,
+        bodyHeightInFrame: bodyHeightNormalized,
+        anthropometricRatio: anthropometricRatio,
+        patientHeightCm: patientHeightCm,
+        timestamp: new Date().toISOString()
+    };
+}
+
+/**
+ * Enhanced calibration wrapper - uses landmark-based when available
+ * Backward compatible with existing calls
+ * @param {number} normalizedValue - Value in 0-1 coordinate space
+ * @param {number} patientHeightCm - Patient height in centimeters
+ * @param {Object} imageMetadata - Image dimensions {width, height}
+ * @param {Array|Object} landmarksOrOptions - Landmarks array or options object
+ * @returns {number} Real-world measurement in centimeters
+ */
+export function calibrateToRealWorldEnhanced(normalizedValue, patientHeightCm, imageMetadata, landmarksOrOptions = null) {
+    let landmarks = null;
+    let calibrationData = null;
+    
+    // Handle different parameter types for flexibility
+    if (Array.isArray(landmarksOrOptions)) {
+        landmarks = landmarksOrOptions;
+    } else if (landmarksOrOptions && typeof landmarksOrOptions === 'object') {
+        landmarks = landmarksOrOptions.landmarks;
+        calibrationData = landmarksOrOptions.calibrationData;
+    }
+    
+    // If we have pre-calculated calibration data, use it
+    if (calibrationData && calibrationData.pixelsPerCm) {
+        const pixelValue = Math.abs(normalizedValue) * imageMetadata.height;
+        return pixelValue / calibrationData.pixelsPerCm;
+    }
+    
+    // Try landmark-based calibration if landmarks available
+    if (landmarks && landmarks.length >= 33) {
+        const landmarkCalibration = calculateLandmarkCalibration(
+            landmarks,
+            patientHeightCm,
+            imageMetadata
+        );
+        
+        if (landmarkCalibration && landmarkCalibration.method === 'landmark-based') {
+            const pixelValue = Math.abs(normalizedValue) * imageMetadata.height;
+            return pixelValue / landmarkCalibration.pixelsPerCm;
+        }
+    }
+    
+    // Fallback to existing basic calibration
+    return calibrateToRealWorld(normalizedValue, patientHeightCm, imageMetadata);
+}
+
+/**
+ * Calculate asymmetry as percentage of segment width
+ * More accurate than percentage of body height
+ * @param {Object} leftPoint - Left landmark {x, y, visibility}
+ * @param {Object} rightPoint - Right landmark {x, y, visibility}
+ * @param {Object} calibrationData - Optional calibration data
+ * @returns {number} Percentage asymmetry
+ */
+export function calculateSegmentAsymmetryPercent(leftPoint, rightPoint, calibrationData = null) {
+    if (!leftPoint || !rightPoint) {
+        return 0;
+    }
+    
+    const verticalDiff = Math.abs(leftPoint.y - rightPoint.y);
+    const horizontalWidth = Math.abs(leftPoint.x - rightPoint.x);
+    
+    if (horizontalWidth === 0) {
+        return 0;
+    }
+    
+    // Return as percentage of segment width
+    return (verticalDiff / horizontalWidth) * 100;
+}
+
+/**
+ * Calculate measurement confidence based on landmark visibility
+ * @param {Array} landmarks - MediaPipe landmarks
+ * @param {string} measurementType - Type of measurement
+ * @param {Object} calibrationData - Optional calibration data
+ * @returns {number} Confidence score 0-1
+ */
+export function calculateMeasurementConfidence(landmarks, measurementType, calibrationData = null) {
+    if (!landmarks || !Array.isArray(landmarks)) {
+        return 0.5;
+    }
+    
+    // Define critical landmarks for each measurement
+    const CRITICAL_LANDMARKS = {
+        'shoulderAsymmetry': [POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.RIGHT_SHOULDER],
+        'hipAsymmetry': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP],
+        'forwardHead': [POSE_LANDMARKS.NOSE, POSE_LANDMARKS.LEFT_EAR, POSE_LANDMARKS.LEFT_SHOULDER],
+        'qAngle': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.LEFT_ANKLE],
+        'pelvicTilt': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP, POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.RIGHT_KNEE],
+        'headTilt': [POSE_LANDMARKS.NOSE, POSE_LANDMARKS.LEFT_EYE, POSE_LANDMARKS.RIGHT_EYE],
+        'pelvicAngle': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP, POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.RIGHT_KNEE],
+        'kyphosisAngle': [POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.LEFT_HIP],
+        'spinalDeviation': [POSE_LANDMARKS.NOSE, POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.LEFT_HIP],
+        'scapularAsymmetry': [POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.RIGHT_SHOULDER, POSE_LANDMARKS.LEFT_ELBOW, POSE_LANDMARKS.RIGHT_ELBOW],
+        'weightDistributionLeft': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP, POSE_LANDMARKS.LEFT_FOOT_INDEX],
+        'weightDistributionRight': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP, POSE_LANDMARKS.RIGHT_FOOT_INDEX]
+    };
+    
+    const criticalIndices = CRITICAL_LANDMARKS[measurementType];
+    if (!criticalIndices) {
+        return 0.7; // Default confidence for unknown measurements
+    }
+    
+    // Calculate average visibility
+    let totalVisibility = 0;
+    let count = 0;
+    
+    criticalIndices.forEach(idx => {
+        const landmark = landmarks[idx];
+        if (landmark && landmark.visibility !== undefined) {
+            totalVisibility += landmark.visibility;
+            count++;
+        }
+    });
+    
+    let confidence = count > 0 ? totalVisibility / count : 0.5;
+    
+    // Factor in calibration quality
+    if (calibrationData && calibrationData.confidence) {
+        confidence = confidence * 0.7 + calibrationData.confidence * 0.3;
+    }
+    
+    // Apply measurement difficulty factor
+    const DIFFICULTY_FACTORS = {
+        'shoulderAsymmetry': 0.9,
+        'hipAsymmetry': 0.85,
+        'forwardHead': 0.8,
+        'qAngle': 0.75,
+        'pelvicTilt': 0.7,
+        'pelvicAngle': 0.7,
+        'kyphosisAngle': 0.75,
+        'spinalDeviation': 0.7,
+        'scapularAsymmetry': 0.8,
+        'headTilt': 0.95,
+        'weightDistributionLeft': 0.65,
+        'weightDistributionRight': 0.65
+    };
+    
+    const difficulty = DIFFICULTY_FACTORS[measurementType] || 0.8;
+    confidence *= difficulty;
+    
+    return Math.max(0.3, Math.min(1.0, confidence));
+}
+
+/**
+ * Check if calibration data is valid
+ * @param {Object} calibration - Calibration data to validate
+ * @returns {boolean} True if valid
+ */
+export function isCalibrationValid(calibration) {
+    if (!calibration) return false;
+    if (!calibration.pixelsPerCm || calibration.pixelsPerCm < 0.5 || calibration.pixelsPerCm > 20) return false;
+    if (!calibration.confidence || calibration.confidence < 0.3) return false;
+    
+    // Check age if timestamp exists
+    if (calibration.timestamp) {
+        const age = Date.now() - new Date(calibration.timestamp).getTime();
+        if (age > 30 * 60 * 1000) { // 30 minutes
+            console.warn('Calibration is older than 30 minutes');
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Get calibration status for UI display
+ * @param {Object} calibration - Calibration data
+ * @returns {Object} Status information
+ */
+export function getCalibrationStatus(calibration) {
+    if (!calibration) {
+        return {
+            status: 'uncalibrated',
+            icon: '⚠️',
+            text: 'Not calibrated',
+            color: 'orange',
+            confidence: 0
+        };
+    }
+    
+    if (!isCalibrationValid(calibration)) {
+        return {
+            status: 'invalid',
+            icon: '❌',
+            text: 'Invalid calibration',
+            color: 'red',
+            confidence: 0
+        };
+    }
+    
+    const confidence = calibration.confidence || 0;
+    
+    if (confidence >= 0.9) {
+        return {
+            status: 'excellent',
+            icon: '✅',
+            text: `Calibrated (${Math.round(confidence * 100)}% confidence)`,
+            color: 'green',
+            confidence: confidence,
+            method: calibration.method
+        };
+    } else if (confidence >= 0.7) {
+        return {
+            status: 'good',
+            icon: '✓',
+            text: `Calibrated (${Math.round(confidence * 100)}% confidence)`,
+            color: 'lightgreen',
+            confidence: confidence,
+            method: calibration.method
+        };
+    } else {
+        return {
+            status: 'poor',
+            icon: '⚠️',
+            text: `Weak calibration (${Math.round(confidence * 100)}% confidence)`,
+            color: 'orange',
+            confidence: confidence,
+            method: calibration.method
+        };
+    }
+}
+
+// Export the landmark constants for use in other modules
+export { POSE_LANDMARKS };

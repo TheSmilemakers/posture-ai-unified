@@ -7,6 +7,125 @@ import { initializeUI, selectMode, backToModeSelection, showTab, startCamera, cl
          handleFileUpload, analyzePosture, generateClinicalReport, exportBiomechanics,
          resetQuickAnalysis, resetAdvancedAnalysis, saveQuickResults } from './ui-controller.js';
 
+// Error Boundary Implementation
+class ErrorBoundary {
+    constructor() {
+        this.hasError = false;
+        this.error = null;
+        
+        // Catch unhandled errors
+        window.addEventListener('error', (event) => {
+            this.handleError(event.error, event);
+        });
+        
+        // Catch unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            this.handleError(event.reason, event);
+        });
+    }
+    
+    handleError(error, event) {
+        console.error('Application Error:', error);
+        
+        // Don't show error modal for network errors during dev
+        if (error?.message?.includes('Failed to fetch') && window.location.hostname === 'localhost') {
+            console.warn('Network error ignored in development');
+            return;
+        }
+        
+        // Show user-friendly error message
+        this.showErrorModal(error);
+        
+        // Log to error tracking service
+        this.logError(error);
+        
+        // Prevent default error handling
+        if (event && event.preventDefault) {
+            event.preventDefault();
+        }
+    }
+    
+    showErrorModal(error) {
+        // Check if error modal already exists
+        if (document.querySelector('.error-modal')) {
+            return;
+        }
+        
+        const errorModal = document.createElement('div');
+        errorModal.className = 'error-modal';
+        errorModal.innerHTML = `
+            <div class="error-content">
+                <h3>
+                    <svg class="error-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    Something went wrong
+                </h3>
+                <p>We encountered an error. Please refresh the page and try again.</p>
+                <p class="error-details">${this.sanitizeErrorMessage(error)}</p>
+                <div class="error-actions">
+                    <button onclick="location.reload()" class="btn btn-primary">Refresh Page</button>
+                    <button onclick="this.closest('.error-modal').remove()" class="btn btn-secondary">Dismiss</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(errorModal);
+        
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            errorModal.remove();
+        }, 10000);
+    }
+    
+    sanitizeErrorMessage(error) {
+        if (!error) return 'Unknown error occurred';
+        
+        const message = error.message || error.toString();
+        
+        // Remove sensitive information
+        return message
+            .replace(/https?:\/\/[^\s]+/g, '[URL]')
+            .replace(/Bearer\s+[^\s]+/g, 'Bearer [TOKEN]')
+            .substring(0, 200);
+    }
+    
+    logError(error) {
+        // Prepare error data for logging
+        const errorData = {
+            message: error?.message || 'Unknown error',
+            stack: error?.stack || 'No stack trace',
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString(),
+            url: window.location.href,
+            // Add app-specific context
+            mode: window.UIState?.currentMode || 'unknown',
+            authenticated: sessionStorage.getItem('pra_auth') === 'true'
+        };
+        
+        // TODO: Send to error tracking service (e.g., Sentry)
+        console.error('Error logged:', errorData);
+        
+        // Store in localStorage for debugging
+        try {
+            const errors = JSON.parse(localStorage.getItem('pra_errors') || '[]');
+            errors.push(errorData);
+            // Keep only last 10 errors
+            if (errors.length > 10) {
+                errors.shift();
+            }
+            localStorage.setItem('pra_errors', JSON.stringify(errors));
+        } catch (e) {
+            console.warn('Could not store error log:', e);
+        }
+    }
+}
+
+// Initialize error boundary
+const errorBoundary = new ErrorBoundary();
+
 // All event handling is now centralized in ui-controller.js using event delegation
 
 // Simple authentication for MVP

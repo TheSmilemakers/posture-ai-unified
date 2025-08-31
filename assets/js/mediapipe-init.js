@@ -52,6 +52,196 @@ export const LANDMARKS = {
 };
 
 /**
+ * Enhanced Pose Detector with landmark stability and temporal smoothing
+ */
+export class EnhancedPoseDetector {
+    constructor() {
+        this.pose = null;
+        this.calibration = null;
+        this.confidenceThreshold = 0.7;
+        this.landmarkHistory = [];
+        this.historySize = 5;
+        this.callbacks = {};
+    }
+    
+    /**
+     * Initialize MediaPipe with enhanced configuration
+     */
+    async initialize(mode = 'advanced') {
+        if (typeof Pose === 'undefined') {
+            throw new Error('MediaPipe Pose library not loaded');
+        }
+        
+        this.pose = new Pose({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+            }
+        });
+        
+        const complexityMap = {
+            'quick': 0,
+            'clinical': 1,
+            'advanced': 2
+        };
+        
+        this.pose.setOptions({
+            modelComplexity: complexityMap[mode] || 2,
+            smoothLandmarks: true,
+            enableSegmentation: mode === 'advanced',
+            smoothSegmentation: true,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7
+        });
+        
+        this.pose.onResults(this.onResults.bind(this));
+        
+        console.log('Enhanced pose detector initialized for', mode, 'mode');
+        return this.pose;
+    }
+    
+    /**
+     * Process pose results with temporal smoothing
+     */
+    onResults(results) {
+        if (!results.poseLandmarks) return;
+        
+        // Add to history for temporal smoothing
+        this.landmarkHistory.push(results.poseLandmarks);
+        if (this.landmarkHistory.length > this.historySize) {
+            this.landmarkHistory.shift();
+        }
+        
+        // Apply temporal smoothing
+        const smoothedLandmarks = this.temporalSmoothing();
+        
+        // Calculate overall confidence
+        const confidence = this.calculateConfidence(smoothedLandmarks);
+        
+        // Check landmark stability
+        const stability = this.checkLandmarkStability();
+        
+        if (confidence >= this.confidenceThreshold && stability > 0.8) {
+            const enhancedResults = {
+                ...results,
+                poseLandmarks: smoothedLandmarks,
+                confidence,
+                stability,
+                isCalibrated: this.calibration?.calibrated || false
+            };
+            
+            // Emit results to callbacks
+            if (this.callbacks.pose) {
+                this.callbacks.pose(enhancedResults);
+            }
+        }
+    }
+    
+    /**
+     * Apply temporal smoothing to landmarks
+     */
+    temporalSmoothing() {
+        if (this.landmarkHistory.length === 0) return null;
+        
+        const smoothed = [];
+        const numLandmarks = this.landmarkHistory[0].length;
+        
+        for (let i = 0; i < numLandmarks; i++) {
+            let x = 0, y = 0, z = 0, visibility = 0;
+            
+            this.landmarkHistory.forEach(frame => {
+                x += frame[i].x;
+                y += frame[i].y;
+                z += frame[i].z || 0;
+                visibility += frame[i].visibility || 0;
+            });
+            
+            const count = this.landmarkHistory.length;
+            smoothed.push({
+                x: x / count,
+                y: y / count,
+                z: z / count,
+                visibility: visibility / count
+            });
+        }
+        
+        return smoothed;
+    }
+    
+    /**
+     * Calculate overall confidence from landmark visibilities
+     */
+    calculateConfidence(landmarks) {
+        if (!landmarks || landmarks.length === 0) return 0;
+        
+        // Critical landmarks for posture analysis
+        const criticalIndices = [
+            LANDMARKS.NOSE,
+            LANDMARKS.LEFT_SHOULDER,
+            LANDMARKS.RIGHT_SHOULDER,
+            LANDMARKS.LEFT_HIP,
+            LANDMARKS.RIGHT_HIP,
+            LANDMARKS.LEFT_KNEE,
+            LANDMARKS.RIGHT_KNEE
+        ];
+        
+        let totalVisibility = 0;
+        criticalIndices.forEach(idx => {
+            totalVisibility += landmarks[idx]?.visibility || 0;
+        });
+        
+        return totalVisibility / criticalIndices.length;
+    }
+    
+    /**
+     * Check landmark stability across frames
+     */
+    checkLandmarkStability() {
+        if (this.landmarkHistory.length < 2) return 1;
+        
+        let totalMovement = 0;
+        const current = this.landmarkHistory[this.landmarkHistory.length - 1];
+        const previous = this.landmarkHistory[this.landmarkHistory.length - 2];
+        
+        for (let i = 0; i < current.length; i++) {
+            const dx = current[i].x - previous[i].x;
+            const dy = current[i].y - previous[i].y;
+            totalMovement += Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        // Normalize movement (lower is more stable)
+        const avgMovement = totalMovement / current.length;
+        return Math.max(0, 1 - avgMovement * 10);
+    }
+    
+    /**
+     * Set callback functions
+     */
+    on(event, callback) {
+        this.callbacks[event] = callback;
+    }
+    
+    /**
+     * Send image for processing
+     */
+    async send(input) {
+        if (this.pose) {
+            return this.pose.send(input);
+        }
+    }
+    
+    /**
+     * Clean up resources
+     */
+    close() {
+        if (this.pose) {
+            this.pose.close();
+        }
+        this.landmarkHistory = [];
+        this.callbacks = {};
+    }
+}
+
+/**
  * Initialize MediaPipe Pose with enhanced error handling and configuration
  * @param {string} mode - Analysis mode ('quick', 'clinical', 'advanced')
  * @returns {Promise<Pose>} Promise that resolves to configured pose instance
