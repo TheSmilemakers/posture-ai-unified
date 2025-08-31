@@ -104,18 +104,11 @@ npm install
 cp .env.development .env.local
 # Edit .env.local with your values if needed
 
-# 4. Start local server
-python3 -m http.server 3000
+# 4. Start local dev server (static + API)
+npx vercel dev --port 3000
 
 # 5. Test locally
 open http://localhost:3000
-```
-
-### **Local Testing**
-- Database calls will automatically route to production Supabase
-- API calls will use localhost:3000/api endpoints
-- All authentication and validation works locally
-
 ---
 
 ## 📊 **MVP Features Confirmed Working**
