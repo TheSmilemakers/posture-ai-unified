@@ -123,7 +123,7 @@ export async function storeAnalysisResults(assessmentId, analysisData) {
     try {
         // Convert analysis data to measurement format
         const measurements = [];
-        const patterns = [];
+        let patterns = [];
         
         // Process measurements based on mode
         if (analysisData.mode === 'quick' && analysisData.results) {

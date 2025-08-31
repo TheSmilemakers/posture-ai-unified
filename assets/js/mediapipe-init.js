@@ -111,6 +111,11 @@ export class EnhancedPoseDetector {
             this.landmarkHistory.shift();
         }
         
+        // Gate: Ensure we have enough frames before processing
+        if (this.landmarkHistory.length < this.historySize) {
+            return; // Return early until buffer is filled
+        }
+        
         // Apply temporal smoothing
         const smoothedLandmarks = this.temporalSmoothing();
         
@@ -196,7 +201,7 @@ export class EnhancedPoseDetector {
      * Check landmark stability across frames
      */
     checkLandmarkStability() {
-        if (this.landmarkHistory.length < 2) return 1;
+        if (this.landmarkHistory.length < 2) return 0; // Return 0 stability for insufficient frames
         
         let totalMovement = 0;
         const current = this.landmarkHistory[this.landmarkHistory.length - 1];
@@ -250,7 +255,8 @@ export function initializePose(mode = 'quick') {
     try {
         // Check if MediaPipe is available
         if (typeof Pose === 'undefined') {
-            throw new Error('MediaPipe Pose library not loaded');
+            console.error('MediaPipe Pose library not loaded. This may be due to CSP restrictions.');
+            throw new Error('MediaPipe Pose library not loaded. Please check browser console for CSP errors.');
         }
         
         const pose = new Pose({

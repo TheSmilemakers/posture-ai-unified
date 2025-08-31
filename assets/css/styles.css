@@ -37,10 +37,10 @@
   --color-secondary:#7A7A73;
   --color-secondary-hover:#626259;
 
-  --color-success:#2D7A2D;
-  --color-warning:#B87900;
-  --color-danger:#C92A2A;
-  --color-link:#2B6CB0;
+  --color-success:#2D7A2D; /* Contrast vs #F8F3CE: 4.76:1 (WCAG AA) */
+  --color-warning:#8B5A00; /* Contrast vs #F8F3CE: 4.9:1 (WCAG AA) - Darkened from #B87900 */
+  --color-danger:#C92A2A; /* Contrast vs #F8F3CE: 4.86:1 (WCAG AA) */
+  --color-link:#2B6CB0; /* Contrast vs #F8F3CE: 4.83:1 (WCAG AA) */
 
   --color-border-light:#C9C6BC;
   --color-border-medium:#B3B0A6;
@@ -88,7 +88,7 @@
   --transition-base: all .3s ease;
   --transition-theme: background-color .4s ease,color .4s ease,border-color .4s ease;
 
-  --z-header:100; --z-nav:90; --z-modal:1000;
+  --z-header:100; --z-nav:90; --z-modal:1000; --z-toast:1100;
   --header-h:64px; --header-h-sm:56px;
 
   --accent:#2B6CB0;
@@ -113,10 +113,10 @@
     --color-primary-hover: light-dark(#3F3E3A,#E6E1BD);
     --color-secondary: light-dark(#7A7A73,#DDDAD0);
     --color-secondary-hover: light-dark(#626259,#C9C6BC);
-    --color-success: light-dark(#2D7A2D,#4CAF50);
-    --color-warning: light-dark(#B87900,#FFB74D);
-    --color-danger: light-dark(#C92A2A,#FF6B6B);
-    --color-link: light-dark(#2B6CB0,#63A3ED);
+    --color-success: light-dark(#2D7A2D,#4CAF50); /* Contrast vs #F8F3CE: 4.76:1 (WCAG AA) */
+    --color-warning: light-dark(#8B5A00,#FFB74D); /* Contrast vs #F8F3CE: 4.9:1 (WCAG AA) - Darkened from #B87900 */
+    --color-danger: light-dark(#C92A2A,#FF6B6B); /* Contrast vs #F8F3CE: 4.86:1 (WCAG AA) */
+    --color-link: light-dark(#2B6CB0,#63A3ED); /* Contrast vs #F8F3CE: 4.83:1 (WCAG AA) */
     --color-border-light: light-dark(#C9C6BC,#4A4A45);
     --color-border-medium: light-dark(#B3B0A6,#57564F);
     --color-border-dark: light-dark(#7A7A73,#7A7A73);
@@ -155,8 +155,9 @@ html[data-theme="dark"]{ color-scheme:dark !important; }
 /* Base typography */
 html{
   height:100%;
-  /* Prevent iOS bounce on html */
-  overflow:hidden;
+  min-height:100vh;
+  /* Allow normal scrolling on mobile */
+  overflow:visible;
   position:relative;
 }
 body{
@@ -165,12 +166,13 @@ body{
   line-height:1.6;
   color:var(--color-text-primary);
   height:100%;
+  min-height:100vh;
   margin:0;
   text-align:center;
-  /* Fix body to prevent double scroll contexts */
-  position:fixed;
+  /* Remove fixed positioning for proper mobile scrolling */
+  position:relative;
   width:100%;
-  overflow:hidden;
+  overflow:visible;
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility;
   transition:var(--transition-theme);
 }
@@ -183,17 +185,14 @@ a:hover{opacity:.8}
 /* App container background */
 .app-container{
   /* Make app-container the primary scroll container */
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  bottom:0;
+  position:relative;
   width:100%;
-  height:100%;
+  height:100vh;
+  min-height:100vh;
   overflow-y:auto;
   overflow-x:hidden;
   -webkit-overflow-scrolling:touch; /* iOS smooth scrolling */
-  overscroll-behavior-y:none; /* Prevent bounce on iOS */
+  overscroll-behavior-y:contain; /* Better scroll containment */
   -webkit-transform:translateZ(0); /* Force hardware acceleration */
   transition:var(--transition-theme);
 }
@@ -369,7 +368,7 @@ html[data-theme="dark"] .app-header{background:rgba(42,42,39,.5)}
 .info-card p{color:var(--color-text-primary);line-height:1.6}
 
 /* Notifications */
-.notification{position:fixed;top:20px;right:20px;padding:var(--spacing-md) var(--spacing-lg);border-radius:var(--border-radius);box-shadow:var(--shadow-lg);z-index:var(--z-modal);animation:slideInRight .4s cubic-bezier(.4,0,.2,1);max-width:350px;font-weight:500;border-left:4px solid;backdrop-filter:blur(10px)}
+.notification{position:fixed;top:20px;right:20px;padding:var(--spacing-md) var(--spacing-lg);border-radius:var(--border-radius);box-shadow:var(--shadow-lg);z-index:var(--z-toast);animation:slideInRight .4s cubic-bezier(.4,0,.2,1);max-width:350px;font-weight:500;border-left:4px solid;backdrop-filter:blur(10px)}
 @keyframes slideInRight{0%{transform:translateX(100%);opacity:0}100%{transform:translateX(0);opacity:1}}
 .notification.info{background:rgba(59,130,246,.95);color:#fff;border-left-color:#3b82f6}
 .notification-success{background:rgba(45,122,45,.95);color:#fff;border-left-color:var(--success-color)}
@@ -532,24 +531,24 @@ html[data-theme="dark"] .app-header{background:rgba(42,42,39,.5)}
 @supports (-webkit-touch-callout: none) {
   /* iOS only styles */
   .app-container {
-    /* Prevent elastic scrolling */
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    /* Enable smooth scrolling without breaking interaction */
     overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
     /* Fix for iOS 13+ */
     scroll-behavior: smooth;
+    /* Ensure proper height */
+    height: 100vh;
+    height: -webkit-fill-available;
   }
   
   /* Ensure content can be scrolled */
   .mode-selection,
   .patient-selection,
   .main-content {
-    /* Add bottom padding for iOS home indicator */
+    /* Add padding for iOS home indicator and side safe areas */
     padding-bottom: env(safe-area-inset-bottom, 20px);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 
@@ -609,4 +608,4 @@ html[data-theme="dark"] .app-header{background:rgba(42,42,39,.5)}
 
 /* Animations */
 @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes slideInHorizontal{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}

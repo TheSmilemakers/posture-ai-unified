@@ -931,6 +931,12 @@ export function calculateLandmarkCalibration(landmarks, patientHeightCm, imageMe
  * @returns {number} Real-world measurement in centimeters
  */
 export function calibrateToRealWorldEnhanced(normalizedValue, patientHeightCm, imageMetadata, landmarksOrOptions = null) {
+    // Guard against null/undefined imageMetadata
+    if (!imageMetadata || !imageMetadata.height || imageMetadata.height <= 0) {
+        console.warn('calibrateToRealWorldEnhanced: Invalid imageMetadata', imageMetadata);
+        return null;
+    }
+    
     let landmarks = null;
     let calibrationData = null;
     

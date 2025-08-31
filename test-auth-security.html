@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Security Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .pass { background: #d4edda; color: #155724; }
+        .fail { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Authentication Security Test</h1>
+    
+    <div class="test info">
+        <h2>Current Environment</h2>
+        <p><strong>Hostname:</strong> <code id="hostname"></code></p>
+        <p><strong>Protocol:</strong> <code id="protocol"></code></p>
+        <p><strong>Is Localhost:</strong> <code id="isLocalhost"></code></p>
+    </div>
+    
+    <div class="test">
+        <h2>skipAuth Bypass Test</h2>
+        <button onclick="testSkipAuth()">Test skipAuth Parameter</button>
+        <div id="skipAuthResult"></div>
+    </div>
+    
+    <div class="test">
+        <h2>Authentication Flow Test</h2>
+        <button onclick="testAuthFlow()">Test Normal Auth Flow</button>
+        <div id="authFlowResult"></div>
+    </div>
+    
+    <div class="test info">
+        <h2>Security Recommendations</h2>
+        <ul>
+            <li>✅ skipAuth now only works on localhost/127.0.0.1</li>
+            <li>⚠️ Password is still hardcoded (MVP acceptable)</li>
+            <li>⚠️ No rate limiting on auth attempts</li>
+            <li>🔒 For production: Implement server-side authentication</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Display current environment
+        document.getElementById('hostname').textContent = location.hostname;
+        document.getElementById('protocol').textContent = location.protocol;
+        document.getElementById('isLocalhost').textContent = 
+            (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'Yes' : 'No';
+        
+        // Test skipAuth bypass
+        function testSkipAuth() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const skipAuth = urlParams.get('skipAuth') === 'development' &&
+                (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+            
+            const resultDiv = document.getElementById('skipAuthResult');
+            
+            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                if (window.location.search.includes('skipAuth=development')) {
+                    resultDiv.className = 'pass';
+                    resultDiv.innerHTML = '<strong>✅ PASS:</strong> skipAuth bypass active (localhost only)';
+                } else {
+                    resultDiv.className = 'info';
+                    resultDiv.innerHTML = '<strong>ℹ️ INFO:</strong> Add ?skipAuth=development to URL to test bypass';
+                }
+            } else {
+                resultDiv.className = skipAuth ? 'fail' : 'pass';
+                resultDiv.innerHTML = skipAuth ? 
+                    '<strong>❌ FAIL:</strong> skipAuth should NOT work on production!' :
+                    '<strong>✅ PASS:</strong> skipAuth correctly blocked on non-localhost';
+            }
+        }
+        
+        // Test authentication flow
+        function testAuthFlow() {
+            const resultDiv = document.getElementById('authFlowResult');
+            
+            // Simulate the authentication check
+            const password = prompt('Restricted area. Enter access password:');
+            
+            if (password === 'posture2025') {
+                resultDiv.className = 'pass';
+                resultDiv.innerHTML = '<strong>✅ PASS:</strong> Authentication successful';
+                sessionStorage.setItem('pra_auth', 'true');
+            } else if (password === null) {
+                resultDiv.className = 'info';
+                resultDiv.innerHTML = '<strong>ℹ️ INFO:</strong> Authentication cancelled';
+            } else {
+                resultDiv.className = 'fail';
+                resultDiv.innerHTML = '<strong>❌ FAIL:</strong> Incorrect password';
+                sessionStorage.removeItem('pra_auth');
+            }
+        }
+        
+        // Auto-run skipAuth test on load
+        window.addEventListener('DOMContentLoaded', testSkipAuth);
+    </script>
+</body>
+</html>

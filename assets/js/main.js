@@ -129,19 +129,22 @@ const errorBoundary = new ErrorBoundary();
 // All event handling is now centralized in ui-controller.js using event delegation
 
 // Simple authentication for MVP
+// TODO: Replace with server-side authentication (e.g., Basic Auth, OAuth) for production
 function checkAuth() {
     // Force re-authentication on each page load for production
     // This ensures password prompt always appears
     const urlParams = new URLSearchParams(window.location.search);
-    const skipAuth = urlParams.get('skipAuth') === 'development';
+    // SECURITY: Only allow skipAuth on localhost for development
+    const skipAuth = urlParams.get('skipAuth') === 'development' &&
+        (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
     
     if (skipAuth) {
-        console.warn('Authentication skipped - development mode');
+        console.warn('Authentication skipped - development mode (localhost only)');
         return true;
     }
     
     // Always prompt for password on production
-    const password = prompt('Please enter the access password:');
+    const password = prompt('Restricted area. Enter access password:');
     if (password !== 'posture2025') {
         alert('Incorrect password. Please reload the page to try again.');
         // Clear any existing auth

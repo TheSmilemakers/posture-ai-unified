@@ -760,15 +760,15 @@ export async function analyzePosture(mode) {
         progressController.updateProgress(1, 40);
         
         // Validate MediaPipe initialization
-        if (!UIState.pose) {
-            // Use enhanced detector for advanced mode
-            if (mode === 'advanced' && !UIState.enhancedDetector) {
+        // Always use EnhancedPoseDetector for advanced mode
+        if (mode === 'advanced') {
+            if (!UIState.enhancedDetector) {
                 UIState.enhancedDetector = new EnhancedPoseDetector();
                 await UIState.enhancedDetector.initialize(mode);
                 UIState.pose = UIState.enhancedDetector.pose; // Get the actual pose object
-            } else {
-                UIState.pose = initializePose(mode); // No await needed - synchronous!
             }
+        } else if (!UIState.pose) {
+            UIState.pose = initializePose(mode); // No await needed - synchronous!
         }
         
         // Step 3: Process with MediaPipe
@@ -781,7 +781,7 @@ export async function analyzePosture(mode) {
             }, 30000); // 30 second timeout
             
             // Handle enhanced detector or regular pose
-            if (UIState.enhancedDetector && mode === 'advanced') {
+            if (mode === 'advanced') {
                 UIState.enhancedDetector.on('pose', (results) => {
                     clearTimeout(timeout);
                     
@@ -804,6 +804,13 @@ export async function analyzePosture(mode) {
                     resolve(results);
                 });
             } else {
+                // Add error checking for pose object
+                if (!UIState.pose || typeof UIState.pose.onResults !== 'function') {
+                    console.error('MediaPipe pose not properly initialized');
+                    reject(new Error('Pose detection engine not available. Please refresh the page.'));
+                    return;
+                }
+                
                 UIState.pose.onResults((results) => {
                     clearTimeout(timeout);
                     
@@ -826,9 +833,14 @@ export async function analyzePosture(mode) {
         });
         
         // Send image to the appropriate handler
-        if (UIState.enhancedDetector && mode === 'advanced') {
+        if (mode === 'advanced') {
             await UIState.enhancedDetector.send({image: imageSource});
         } else {
+            // Ensure pose.send is available before calling
+            if (!UIState.pose || typeof UIState.pose.send !== 'function') {
+                throw new Error('MediaPipe not properly initialized. Please refresh the page.');
+            }
+            
             await UIState.pose.send({image: imageSource});
         }
         await analysisPromise;
@@ -941,6 +953,10 @@ function displayQuickResults(score, metrics, landmarks) {
     // Update score
     document.getElementById('quick-score').textContent = score;
     
+    // Check if we have calibration data (patient height set)
+    const hasCalibration = getPatientHeight() > 0;
+    const unitLabel = hasCalibration ? ' cm' : '';
+    
     // Display metrics
     const metricsHTML = `
         <div class="metric-card">
@@ -956,7 +972,7 @@ function displayQuickResults(score, metrics, landmarks) {
             <div class="metric-header">
                 <span class="metric-title">Shoulder Level</span>
                 <span class="metric-value">
-                    ${formatNumber(metrics.shoulderLevel, 1)} cm
+                    ${formatNumber(metrics.shoulderLevel, 1)}${unitLabel}
                     <span class="severity-indicator severity-${getSeverity(metrics.shoulderLevel, [1, 2, 3])}"></span>
                 </span>
             </div>
@@ -965,7 +981,7 @@ function displayQuickResults(score, metrics, landmarks) {
             <div class="metric-header">
                 <span class="metric-title">Hip Level</span>
                 <span class="metric-value">
-                    ${formatNumber(metrics.hipLevel, 1)} cm
+                    ${formatNumber(metrics.hipLevel, 1)}${unitLabel}
                     <span class="severity-indicator severity-${getSeverity(metrics.hipLevel, [1, 2, 3])}"></span>
                 </span>
             </div>
@@ -1043,6 +1059,13 @@ async function performAdvancedAnalysis() {
                     reject(new Error(`Analysis of ${view} view timed out`));
                 }, 20000); // 20 second timeout per view
                 
+                // Check if pose is properly initialized
+                if (!UIState.pose || typeof UIState.pose.onResults !== 'function') {
+                    console.error('MediaPipe pose not properly initialized for advanced mode');
+                    reject(new Error('Pose detection engine not available. Please refresh the page.'));
+                    return;
+                }
+                
                 UIState.pose.onResults((results) => {
                     clearTimeout(timeout);
                     try {
@@ -1053,6 +1076,12 @@ async function performAdvancedAnalysis() {
                         reject(error);
                     }
                 });
+                
+                // Verify pose.send exists before calling
+                if (!UIState.pose || typeof UIState.pose.send !== 'function') {
+                    reject(new Error('MediaPipe not initialized. Please refresh the page.'));
+                    return;
+                }
                 
                 UIState.pose.send({image: images[view]}).catch(reject);
             });
@@ -1272,13 +1301,13 @@ function displayAdvancedMetrics(data) {
             formatNumber(data.front.qAngle, 1) + '°',
             getSeverity(Math.abs(data.front.qAngle - 15), [3, 5, 8]));
         metricsHTML += createMetricCard('Shoulder Asymmetry', 
-            formatNumber(data.front.shoulderAsymmetry, 1) + ' cm',
+            formatNumber(data.front.shoulderAsymmetry, 1) + '%',
             getSeverity(data.front.shoulderAsymmetry, [1, 2, 3]));
     }
     
     if (data.side) {
         metricsHTML += createMetricCard('Forward Head', 
-            formatNumber(data.side.forwardHead, 1) + ' cm',
+            formatNumber(data.side.forwardHead, 1) + '%',
             getSeverity(Math.abs(data.side.forwardHead), [2, 4, 6]));
         metricsHTML += createMetricCard('Pelvic Angle', 
             formatNumber(data.side.pelvicAngle, 1) + '°',
@@ -1287,7 +1316,7 @@ function displayAdvancedMetrics(data) {
     
     if (data.back) {
         metricsHTML += createMetricCard('Spinal Deviation', 
-            formatNumber(data.back.spinalDeviation, 1) + ' cm',
+            formatNumber(data.back.spinalDeviation, 1) + '%',
             getSeverity(data.back.spinalDeviation, [2, 3, 4]));
     }
     
@@ -2094,7 +2123,7 @@ export function resetAdvancedAnalysis() {
 function collectCurrentTabData(tabName) {
     try {
         switch (tabName) {
-            case 'client-info':
+            case 'client-info': {
                 const clientData = {
                     name: document.getElementById('client-name')?.value || '',
                     date: document.getElementById('assessment-date')?.value || '',
@@ -2103,8 +2132,9 @@ function collectCurrentTabData(tabName) {
                 };
                 UIState.analysisData.clinical.clientInfo = clientData;
                 break;
+            }
                 
-            case 'north-star':
+            case 'north-star': {
                 const goalData = {
                     primaryGoal: document.getElementById('primary-goal')?.value || '',
                     timeline: document.getElementById('timeline')?.value || '',
@@ -2114,24 +2144,27 @@ function collectCurrentTabData(tabName) {
                 };
                 UIState.analysisData.clinical.goals = goalData;
                 break;
+            }
                 
-            case 'release':
+            case 'release': {
                 const releaseData = {
                     exercises: collectSelectedExercises('#clinical-release .exercise-card'),
                     notes: document.getElementById('release-notes')?.value || ''
                 };
                 UIState.analysisData.clinical.release = releaseData;
                 break;
+            }
                 
-            case 'reset':
+            case 'reset': {
                 const resetData = {
                     exercises: collectSelectedExercises('#clinical-reset .exercise-card'),
                     notes: document.getElementById('reset-notes')?.value || ''
                 };
                 UIState.analysisData.clinical.reset = resetData;
                 break;
+            }
                 
-            case 'rebuild':
+            case 'rebuild': {
                 const rebuildData = {
                     exercises: collectSelectedExercises('#clinical-rebuild .exercise-card'),
                     progression: document.getElementById('progression-timeline')?.value || 'standard',
@@ -2139,8 +2172,9 @@ function collectCurrentTabData(tabName) {
                 };
                 UIState.analysisData.clinical.rebuild = rebuildData;
                 break;
+            }
                 
-            case 'assessment':
+            case 'assessment': {
                 // Collect photo data and annotations
                 const photoData = {};
                 ['front', 'side', 'back'].forEach(view => {
@@ -2167,6 +2201,7 @@ function collectCurrentTabData(tabName) {
                     UIState.uploadedViews.clinical[view] = true;
                 });
                 break;
+            }
         }
     } catch (error) {
         console.error('Error collecting tab data:', error);
@@ -2580,7 +2615,9 @@ function showModeContent(mode) {
         }
         
         // Initialize MediaPipe with error handling
-        if (!UIState.pose) {
+        // For advanced mode, we'll initialize EnhancedPoseDetector in analyzePosture
+        // to avoid creating multiple instances
+        if (!UIState.pose && mode !== 'advanced') {
             UIState.pose = initializePose(mode);
         }
         

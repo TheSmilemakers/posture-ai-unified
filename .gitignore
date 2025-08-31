@@ -43,3 +43,7 @@ Thumbs.db
 
 # MCP configuration (contains tokens)
 .mcp.json
+
+# Backup files
+*.backup
+*.backup-*
