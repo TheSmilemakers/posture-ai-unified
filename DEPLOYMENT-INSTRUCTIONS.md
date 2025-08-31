@@ -67,7 +67,7 @@ curl -H "Authorization: Bearer posture-api-2025" https://posture.rajanmaher.com/
 
 ### **Test 2: Patient Creation (MVP Fields)**
 1. Navigate to https://posture.rajanmaher.com
-2. Enter password: `posture2025`
+2. Enter password: `YOUR_APP_PASSWORD`
 3. Select any assessment mode
 4. Click "New Patient"
 5. Fill out the form:
