@@ -10,42 +10,49 @@
 **Files Updated**:
 - `database-service.js` - 6 fetch calls updated
 
-### 2. ✅ SRI Added to CDN Scripts (FIXED)
+### 2. ⚠️ SRI Partially Implemented
 **Problem**: External scripts vulnerable to CDN compromise
-**Solution**: Added integrity hash to Chart.js and crossorigin attributes to all scripts
-**Impact**: Protection against compromised CDN content
+**Solution**: Added integrity hash to Chart.js only
+**Reality**: 
+- MediaPipe scripts don't support SRI due to dynamic module loading
+- Only Chart.js has SRI protection
+- Fixed wrong URL: chart.umd.min.js → chart.umd.js
 
 **Files Updated**:
-- `index.html` - Added SRI to Chart.js, crossorigin to all scripts
+- `index.html` - SRI added to Chart.js only, removed from MediaPipe
 
-### 3. ✅ Mobile Scrolling (FIXED)
+### 3. ✅ Mobile Scrolling (IMPROVED)
 **Problem**: Conflicting CSS rules preventing smooth mobile scrolling
-**Solution**: Proper height constraints with overflow management
-**Impact**: Smooth scrolling on iOS and Android devices
+**Solution**: Better compatibility with min-height approach
+**Impact**: More compatible across browsers
 
 **Changes**:
 ```css
-html { height: 100%; }
-body { height: 100%; overflow: hidden; }
+html, body { 
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
 .app-container { 
-  height: 100%; 
+  min-height: 100vh;
   overflow-y: auto; 
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 }
 ```
 
 ### 4. ✅ CSP Improvements (FIXED)
 **Problem**: CSP included 'unsafe-eval' and 'http://localhost:*'
 **Solution**: Removed 'unsafe-eval' and localhost from production CSP
-**Impact**: Better XSS protection while maintaining MVP functionality
-
+**Reality**: MediaPipe works without 'unsafe-eval' (WebAssembly compatible)
 **Note**: Kept 'unsafe-inline' for MVP since refactoring all inline scripts would be too complex
 
-## Security Score Improvement
+## Honest Security Score Assessment
 - **Before**: 35/100
-- **After**: ~75/100 (estimated)
-- **Good enough for MVP**: ✅
+- **After**: ~55/100 (realistic estimate)
+- **Why not 75?**: 
+  - Only partial SRI implementation
+  - Still using 'unsafe-inline' in CSP
+  - No modern security headers (COOP, CORP)
+  - No CSRF protection
 
 ## Remaining Tasks (Lower Priority)
 - ESLint/Stylelint setup
