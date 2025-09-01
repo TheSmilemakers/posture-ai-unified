@@ -769,7 +769,7 @@ export async function analyzePosture(mode) {
                 UIState.pose = UIState.enhancedDetector.pose; // Get the actual pose object
             }
         } else if (!UIState.pose) {
-            UIState.pose = initializePose(mode); // No await needed - synchronous!
+            UIState.pose = await initializePose(mode); // Await MediaPipe initialization
         }
         
         // Step 3: Process with MediaPipe
@@ -805,11 +805,32 @@ export async function analyzePosture(mode) {
                     resolve(results);
                 });
             } else {
-                // Add error checking for pose object
+                // Add error checking for pose object with fallback recovery
                 if (!UIState.pose || typeof UIState.pose.onResults !== 'function') {
-                    console.error('MediaPipe pose not properly initialized');
-                    reject(new Error('Pose detection engine not available. Please refresh the page.'));
-                    return;
+                    console.warn('MediaPipe not ready, attempting reinitialization...', {
+                        pose: UIState.pose,
+                        hasOnResults: UIState.pose ? typeof UIState.pose.onResults : 'no pose object'
+                    });
+                    
+                    try {
+                        // Force reinitialization
+                        UIState.pose = null;
+                        UIState.pose = await initializePose(mode);
+                        
+                        // Wait a bit more for WASM to load completely
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        // Check again
+                        if (!UIState.pose || typeof UIState.pose.onResults !== 'function') {
+                            throw new Error('MediaPipe failed to initialize after retry');
+                        }
+                        
+                        console.log('MediaPipe successfully reinitialized');
+                    } catch (retryError) {
+                        console.error('MediaPipe reinitialization failed:', retryError);
+                        reject(new Error('Pose detection engine not ready. Please refresh the page and try again.'));
+                        return;
+                    }
                 }
                 
                 UIState.pose.onResults((results) => {
@@ -837,9 +858,25 @@ export async function analyzePosture(mode) {
         if (mode === 'advanced') {
             await UIState.enhancedDetector.send({image: imageSource});
         } else {
-            // Ensure pose.send is available before calling
+            // Ensure pose.send is available before calling with fallback check
             if (!UIState.pose || typeof UIState.pose.send !== 'function') {
-                throw new Error('MediaPipe not properly initialized. Please refresh the page.');
+                console.warn('MediaPipe pose.send not available, checking initialization state...', {
+                    pose: UIState.pose,
+                    hasSend: UIState.pose ? typeof UIState.pose.send : 'no pose object',
+                    isInitialized: UIState.pose ? UIState.pose._isInitialized : false
+                });
+                
+                // If MediaPipe is marked as initialized but send is missing, something went wrong
+                if (UIState.pose && UIState.pose._isInitialized) {
+                    console.error('MediaPipe initialization inconsistency detected');
+                    throw new Error('Pose detection engine is in an inconsistent state. Please refresh the page.');
+                } else {
+                    // Wait a bit more and try again
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    if (!UIState.pose || typeof UIState.pose.send !== 'function') {
+                        throw new Error('Pose detection engine not ready. Please refresh the page and try again.');
+                    }
+                }
             }
             
             await UIState.pose.send({image: imageSource});

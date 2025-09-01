@@ -263,9 +263,9 @@ export class EnhancedPoseDetector {
 /**
  * Initialize MediaPipe Pose with enhanced error handling and configuration
  * @param {string} mode - Analysis mode ('quick', 'clinical', 'advanced')
- * @returns {Pose} Configured pose instance ready for use
+ * @returns {Promise<Pose>} Configured pose instance ready for use
  */
-export function initializePose(mode = 'quick') {
+export async function initializePose(mode = 'quick') {
     try {
         // Check if MediaPipe is available
         if (typeof Pose === 'undefined') {
@@ -278,6 +278,9 @@ export function initializePose(mode = 'quick') {
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
             }
         });
+        
+        // Add initialization flag
+        pose._isInitialized = false;
         
         // Set complexity based on mode with validation
         const complexityMap = {
@@ -302,8 +305,51 @@ export function initializePose(mode = 'quick') {
         
         pose.setOptions(config);
         
-        // MediaPipe Pose is ready immediately after construction
-        console.log('MediaPipe Pose initialized successfully');
+        // Wait for MediaPipe to be fully initialized
+        // MediaPipe models need to load before the pose object is ready
+        await new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 100; // 5 seconds timeout (50ms * 100)
+            
+            // Check if pose methods are available and truly functional
+            const checkReady = () => {
+                attempts++;
+                
+                try {
+                    // First check if methods exist
+                    if (!pose.send || !pose.onResults || !pose.setOptions) {
+                        throw new Error('MediaPipe methods not yet available');
+                    }
+                    
+                    // Test if MediaPipe is truly ready by setting up a callback
+                    // This will throw if WASM modules aren't loaded
+                    pose.onResults(() => {});
+                    
+                    // If we get here, MediaPipe is ready
+                    console.log('MediaPipe Pose initialized successfully');
+                    pose._isInitialized = true;
+                    resolve();
+                } catch (e) {
+                    if (attempts >= maxAttempts) {
+                        console.error('MediaPipe initialization timeout', {
+                            error: e.message,
+                            hasSend: !!pose.send,
+                            hasOnResults: !!pose.onResults,
+                            hasSetOptions: !!pose.setOptions,
+                            attempts
+                        });
+                        reject(new Error('MediaPipe initialization timed out. Please refresh the page.'));
+                    } else {
+                        // Retry after a short delay
+                        setTimeout(checkReady, 50);
+                    }
+                }
+            };
+            
+            // Start checking after a brief delay to allow WASM to begin loading
+            setTimeout(checkReady, 100);
+        });
+        
         return pose;
         
     } catch (error) {
