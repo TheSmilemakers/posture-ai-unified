@@ -992,7 +992,7 @@ function displayQuickResults(score, metrics, landmarks) {
     document.getElementById('quick-score').textContent = score;
     
     // Check if we have calibration data (patient height set)
-    const hasCalibration = getPatientHeight() > 0;
+    const hasCalibration = getPatientHeight('quick') > 0;
     const unitLabel = hasCalibration ? ' cm' : '';
     
     // Display metrics
