@@ -3,6 +3,9 @@
  * Common helper functions for the application
  */
 
+import { LANDMARKS } from './mediapipe-init.js';
+import { sanitizer } from './sanitizer.js';
+
 /**
  * Format number to specified decimal places
  * @param {number} num - Number to format
@@ -255,12 +258,24 @@ export async function generatePDF(data, filename) {
         // Fallback to HTML report
         const html = generateReportHTML(data);
         const newWindow = window.open('', '_blank');
-        newWindow.document.write(html);
-        newWindow.document.close();
         
-        setTimeout(() => {
-            newWindow.print();
-        }, 500);
+        if (newWindow) {
+            // Create a new document safely
+            const doc = newWindow.document;
+            doc.open();
+            
+            // Parse the HTML and create DOM elements
+            const parser = new DOMParser();
+            const parsedDoc = parser.parseFromString(html, 'text/html');
+            
+            // Copy the parsed content to the new window
+            doc.documentElement.innerHTML = parsedDoc.documentElement.innerHTML;
+            doc.close();
+            
+            setTimeout(() => {
+                newWindow.print();
+            }, 500);
+        }
         
         throw new Error('PDF generation failed, opened print dialog instead');
     }
@@ -302,9 +317,9 @@ function generateReportHTML(data) {
             </div>
             
             ${data.clientName ? `<h2>Patient Information</h2>
-            <p><strong>Name:</strong> ${data.clientName}</p>
-            <p><strong>Assessment Date:</strong> ${data.assessmentDate || date}</p>
-            <p><strong>Assessor:</strong> ${data.assessor || 'System Generated'}</p>` : ''}
+            <p><strong>Name:</strong> ${sanitizer.escapeHtml(data.clientName)}</p>
+            <p><strong>Assessment Date:</strong> ${sanitizer.escapeHtml(data.assessmentDate || date)}</p>
+            <p><strong>Assessor:</strong> ${sanitizer.escapeHtml(data.assessor || 'System Generated')}</p>` : ''}
             
             <h2>Analysis Results</h2>
             <table>
@@ -317,7 +332,7 @@ function generateReportHTML(data) {
             </table>
             
             ${data.recommendations ? `<h2>Recommendations</h2>
-            <ul>${data.recommendations.map(rec => `<li>${rec}</li>`).join('')}</ul>` : ''}
+            <ul>${data.recommendations.map(rec => `<li>${sanitizer.escapeHtml(rec)}</li>`).join('')}</ul>` : ''}
             
             <div class="footer">
                 <p>This report is for clinical reference only and should be interpreted by a qualified healthcare professional.</p>
@@ -753,7 +768,7 @@ export function validateCalibrationData(patientHeight, imageMetadata) {
  */
 
 // MediaPipe landmark indices
-const POSE_LANDMARKS = {
+const LANDMARKS = {
     NOSE: 0,
     LEFT_EYE_INNER: 1,
     LEFT_EYE: 2,
@@ -817,11 +832,11 @@ export function calculateLandmarkCalibration(landmarks, patientHeightCm, imageMe
     }
     
     // Get key landmarks for height calculation
-    const nose = landmarks[POSE_LANDMARKS.NOSE];
-    const leftAnkle = landmarks[POSE_LANDMARKS.LEFT_ANKLE];
-    const rightAnkle = landmarks[POSE_LANDMARKS.RIGHT_ANKLE];
-    const leftHeel = landmarks[POSE_LANDMARKS.LEFT_HEEL];
-    const rightHeel = landmarks[POSE_LANDMARKS.RIGHT_HEEL];
+    const nose = landmarks[LANDMARKS.NOSE];
+    const leftAnkle = landmarks[LANDMARKS.LEFT_ANKLE];
+    const rightAnkle = landmarks[LANDMARKS.RIGHT_ANKLE];
+    const leftHeel = landmarks[LANDMARKS.LEFT_HEEL];
+    const rightHeel = landmarks[LANDMARKS.RIGHT_HEEL];
     
     // Check minimum visibility
     const minVisibility = 0.5;
@@ -1010,18 +1025,18 @@ export function calculateMeasurementConfidence(landmarks, measurementType, calib
     
     // Define critical landmarks for each measurement
     const CRITICAL_LANDMARKS = {
-        'shoulderAsymmetry': [POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.RIGHT_SHOULDER],
-        'hipAsymmetry': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP],
-        'forwardHead': [POSE_LANDMARKS.NOSE, POSE_LANDMARKS.LEFT_EAR, POSE_LANDMARKS.LEFT_SHOULDER],
-        'qAngle': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.LEFT_ANKLE],
-        'pelvicTilt': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP, POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.RIGHT_KNEE],
-        'headTilt': [POSE_LANDMARKS.NOSE, POSE_LANDMARKS.LEFT_EYE, POSE_LANDMARKS.RIGHT_EYE],
-        'pelvicAngle': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP, POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.RIGHT_KNEE],
-        'kyphosisAngle': [POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.LEFT_HIP],
-        'spinalDeviation': [POSE_LANDMARKS.NOSE, POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.LEFT_HIP],
-        'scapularAsymmetry': [POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.RIGHT_SHOULDER, POSE_LANDMARKS.LEFT_ELBOW, POSE_LANDMARKS.RIGHT_ELBOW],
-        'weightDistributionLeft': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP, POSE_LANDMARKS.LEFT_FOOT_INDEX],
-        'weightDistributionRight': [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP, POSE_LANDMARKS.RIGHT_FOOT_INDEX]
+        'shoulderAsymmetry': [LANDMARKS.LEFT_SHOULDER, LANDMARKS.RIGHT_SHOULDER],
+        'hipAsymmetry': [LANDMARKS.LEFT_HIP, LANDMARKS.RIGHT_HIP],
+        'forwardHead': [LANDMARKS.NOSE, LANDMARKS.LEFT_EAR, LANDMARKS.LEFT_SHOULDER],
+        'qAngle': [LANDMARKS.LEFT_HIP, LANDMARKS.LEFT_KNEE, LANDMARKS.LEFT_ANKLE],
+        'pelvicTilt': [LANDMARKS.LEFT_HIP, LANDMARKS.RIGHT_HIP, LANDMARKS.LEFT_KNEE, LANDMARKS.RIGHT_KNEE],
+        'headTilt': [LANDMARKS.NOSE, LANDMARKS.LEFT_EYE, LANDMARKS.RIGHT_EYE],
+        'pelvicAngle': [LANDMARKS.LEFT_HIP, LANDMARKS.RIGHT_HIP, LANDMARKS.LEFT_KNEE, LANDMARKS.RIGHT_KNEE],
+        'kyphosisAngle': [LANDMARKS.LEFT_SHOULDER, LANDMARKS.LEFT_HIP],
+        'spinalDeviation': [LANDMARKS.NOSE, LANDMARKS.LEFT_SHOULDER, LANDMARKS.LEFT_HIP],
+        'scapularAsymmetry': [LANDMARKS.LEFT_SHOULDER, LANDMARKS.RIGHT_SHOULDER, LANDMARKS.LEFT_ELBOW, LANDMARKS.RIGHT_ELBOW],
+        'weightDistributionLeft': [LANDMARKS.LEFT_HIP, LANDMARKS.RIGHT_HIP, LANDMARKS.LEFT_FOOT_INDEX],
+        'weightDistributionRight': [LANDMARKS.LEFT_HIP, LANDMARKS.RIGHT_HIP, LANDMARKS.RIGHT_FOOT_INDEX]
     };
     
     const criticalIndices = CRITICAL_LANDMARKS[measurementType];
@@ -1151,4 +1166,4 @@ export function getCalibrationStatus(calibration) {
 }
 
 // Export the landmark constants for use in other modules
-export { POSE_LANDMARKS };
+export { LANDMARKS };

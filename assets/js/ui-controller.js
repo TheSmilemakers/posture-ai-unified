@@ -4,6 +4,7 @@
  */
 
 import { initializePose, drawConnectors, drawLandmarks, POSE_CONNECTIONS, EnhancedPoseDetector, LANDMARKS } from './mediapipe-init.js';
+import { sanitizer } from './sanitizer.js';
 import { 
     calculateBasicMetrics, 
     analyzeFrontView, 
@@ -987,20 +988,31 @@ function displayQuickResults(score, metrics, landmarks) {
             </div>
         </div>
     `;
+    // Use innerHTML for metrics display (no user input)
     document.getElementById('quick-metrics').innerHTML = metricsHTML;
     
     // Generate recommendations
     const exercises = generateExerciseRecommendations(metrics);
-    let recommendationsHTML = '<ul style="list-style: none; padding: 0;">';
+    const recommendationsContainer = document.getElementById('quick-recommendations');
+    recommendationsContainer.innerHTML = ''; // Clear existing content
+    
+    const ul = document.createElement('ul');
+    ul.style.listStyle = 'none';
+    ul.style.padding = '0';
+    
     exercises.forEach(exercise => {
-        recommendationsHTML += `
-            <li style="padding: 8px 0;">
-                <strong>${exercise.name}</strong> - ${exercise.description}
-            </li>
-        `;
+        const li = document.createElement('li');
+        li.style.padding = '8px 0';
+        
+        const strong = document.createElement('strong');
+        strong.textContent = exercise.name;
+        
+        li.appendChild(strong);
+        li.appendChild(document.createTextNode(' - ' + exercise.description));
+        ul.appendChild(li);
     });
-    recommendationsHTML += '</ul>';
-    document.getElementById('quick-recommendations').innerHTML = recommendationsHTML;
+    
+    recommendationsContainer.appendChild(ul);
     
     // Show results
     document.getElementById('quick-results').classList.remove('hidden');

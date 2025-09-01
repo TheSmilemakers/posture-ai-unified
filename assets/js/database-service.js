@@ -173,13 +173,18 @@ export async function storeAnalysisResults(assessmentId, analysisData) {
                     if (viewData.measurements && Array.isArray(viewData.measurements)) {
                         // New format - use directly
                         viewData.measurements.forEach(m => {
-                            measurements.push({
-                                type: m.type || m.name,  // Handle both property names
-                                value: parseFloat(m.value),
-                                unit: m.unit || 'degrees',
-                                confidence: m.confidence || 0.9,
-                                viewType: view
-                            });
+                            const numValue = parseFloat(m.value);
+                            if (!isNaN(numValue)) {
+                                measurements.push({
+                                    type: m.type || m.name,  // Handle both property names
+                                    value: numValue,
+                                    unit: m.unit || 'degrees',
+                                    confidence: m.confidence || 0.9,
+                                    viewType: view
+                                });
+                            } else {
+                                console.error(`Invalid numeric value for measurement ${m.type || m.name}: ${m.value}`);
+                            }
                         });
                     } else {
                         // Old format - convert properties to measurements
@@ -188,35 +193,23 @@ export async function storeAnalysisResults(assessmentId, analysisData) {
                                 key !== 'totalDeviation' && 
                                 key !== 'confidence' && 
                                 key !== 'stability') {
-                                measurements.push({
-                                    type: key,
-                                    value: parseFloat(value),
-                                    unit: MEASUREMENT_UNITS[key] || 'units',  // FIXED: Use correct unit mapping
-                                    confidence: viewData.confidence || 0.85,
-                                    viewType: view
-                                });
+                                const numValue = parseFloat(value);
+                                if (!isNaN(numValue)) {
+                                    measurements.push({
+                                        type: key,
+                                        value: numValue,
+                                        unit: MEASUREMENT_UNITS[key] || 'units',  // FIXED: Use correct unit mapping
+                                        confidence: viewData.confidence || 0.85,
+                                        viewType: view
+                                    });
+                                } else {
+                                    console.error(`Invalid numeric value for ${key}: ${value}`);
+                                }
                             }
                         });
                         
-                        // Handle weight distribution special case
-                        if (viewData.weightDistribution) {
-                            measurements.push(
-                                {
-                                    type: 'weight_distribution_left',
-                                    value: viewData.weightDistribution.left,
-                                    unit: 'percent',
-                                    confidence: 0.8,
-                                    viewType: view
-                                },
-                                {
-                                    type: 'weight_distribution_right',
-                                    value: viewData.weightDistribution.right,
-                                    unit: 'percent',
-                                    confidence: 0.8,
-                                    viewType: view
-                                }
-                            );
-                        }
+                        // Note: weight distribution is now handled by the general loop above
+                        // via weightDistributionLeft and weightDistributionRight properties
                     }
                 }
             });

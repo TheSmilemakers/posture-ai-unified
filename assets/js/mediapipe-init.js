@@ -84,13 +84,14 @@ export class EnhancedPoseDetector {
             'advanced': 2
         };
         
+        // Optimized configuration based on MediaPipe best practices
         this.pose.setOptions({
-            modelComplexity: complexityMap[mode] || 2,
-            smoothLandmarks: true,
-            enableSegmentation: mode === 'advanced',
-            smoothSegmentation: true,
-            minDetectionConfidence: 0.7,
-            minTrackingConfidence: 0.7
+            modelComplexity: complexityMap[mode] || 2,  // Maximum accuracy for clinical use
+            smoothLandmarks: true,                      // Essential for stable measurements
+            enableSegmentation: false,                  // Not needed, saves performance
+            smoothSegmentation: false,                  // Not using segmentation
+            minDetectionConfidence: 0.7,                // Good balance for clinical accuracy
+            minTrackingConfidence: 0.8                  // Higher for stability in measurements
         });
         
         this.pose.onResults(this.onResults.bind(this));
@@ -103,7 +104,20 @@ export class EnhancedPoseDetector {
      * Process pose results with temporal smoothing
      */
     onResults(results) {
-        if (!results.poseLandmarks) return;
+        if (!results.poseLandmarks) {
+            console.warn('No pose detected in frame');
+            return;
+        }
+        
+        // Check pose quality before processing
+        const avgVisibility = results.poseLandmarks.reduce(
+            (sum, landmark) => sum + (landmark.visibility || 0), 0
+        ) / results.poseLandmarks.length;
+        
+        if (avgVisibility < 0.6) {
+            console.warn('Poor pose visibility:', avgVisibility.toFixed(2));
+            return;
+        }
         
         // Add to history for temporal smoothing
         this.landmarkHistory.push(results.poseLandmarks);
@@ -274,13 +288,14 @@ export function initializePose(mode = 'quick') {
         
         const complexity = complexityMap[mode] || 0;
         
-        // Enhanced configuration based on mode
+        // Optimized configuration based on MediaPipe best practices
         const config = {
             modelComplexity: complexity,
-            smoothLandmarks: true,
-            enableSegmentation: false,
-            minDetectionConfidence: mode === 'advanced' ? 0.7 : 0.5,
-            minTrackingConfidence: mode === 'advanced' ? 0.7 : 0.5
+            smoothLandmarks: true,                       // Essential for stable measurements
+            enableSegmentation: false,                   // Not needed, saves performance
+            smoothSegmentation: false,                   // Not using segmentation
+            minDetectionConfidence: mode === 'advanced' ? 0.7 : 0.6,  // Higher baseline for accuracy
+            minTrackingConfidence: mode === 'advanced' ? 0.8 : 0.7    // Higher for stability
         };
         
         console.log(`Initializing MediaPipe Pose for ${mode} mode with config:`, config);

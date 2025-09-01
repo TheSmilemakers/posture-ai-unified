@@ -6,6 +6,7 @@
 import { initializeUI, selectMode, backToModeSelection, showTab, startCamera, closeCamera, 
          handleFileUpload, analyzePosture, generateClinicalReport, exportBiomechanics,
          resetQuickAnalysis, resetAdvancedAnalysis, saveQuickResults } from './ui-controller.js';
+import { sanitizer } from './sanitizer.js';
 
 // Error Boundary Implementation
 class ErrorBoundary {

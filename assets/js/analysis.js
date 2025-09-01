@@ -5,6 +5,7 @@
 
 import { LANDMARKS } from './mediapipe-init.js';
 import { calibrateToRealWorld, calibrateToRealWorldEnhanced, convertToBodyPercentage } from './utils.js';
+import { MeasurementValue, MeasurementUnit, CalibrationManager } from './measurement-system.js';
 
 /**
  * Calculate angle between three points
@@ -104,6 +105,16 @@ export function calculateBasicMetrics(landmarks, patientHeight = 170, imageMetad
         const shoulderAsymmetryCm = calibrateToRealWorldEnhanced(rawShoulderDiff, patientHeight, imageMetadata, landmarks);
         const hipAsymmetryCm = calibrateToRealWorldEnhanced(rawHipDiff, patientHeight, imageMetadata, landmarks);
         
+        // Check for calibration failures
+        if (shoulderAsymmetryCm === null || hipAsymmetryCm === null) {
+            console.warn('calculateBasicMetrics: Calibration failed - using raw values');
+            return {
+                headTilt: rawHeadTilt,
+                shoulderLevel: rawShoulderDiff * 100,  // Fallback to normalized
+                hipLevel: rawHipDiff * 100  // Fallback to normalized
+            };
+        }
+        
         return {
             headTilt: rawHeadTilt,  // Already in degrees - no calibration needed
             shoulderLevel: shoulderAsymmetryCm,  // Now in real centimeters
@@ -146,7 +157,12 @@ export function analyzeFrontView(landmarks, patientHeight = 170, imageMetadata =
     
     if (imageMetadata && patientHeight) {
         const shoulderAsymmetryCm = calibrateToRealWorldEnhanced(rawShoulderDiff, patientHeight, imageMetadata, landmarks);
-        data.shoulderAsymmetry = convertToBodyPercentage(shoulderAsymmetryCm, patientHeight);
+        if (shoulderAsymmetryCm !== null) {
+            data.shoulderAsymmetry = convertToBodyPercentage(shoulderAsymmetryCm, patientHeight);
+        } else {
+            console.warn('analyzeFrontView: Shoulder calibration failed - using raw value');
+            data.shoulderAsymmetry = rawShoulderDiff * 100; // Fallback normalized
+        }
     } else {
         data.shoulderAsymmetry = rawShoulderDiff * 100; // Fallback normalized
     }
@@ -158,7 +174,12 @@ export function analyzeFrontView(landmarks, patientHeight = 170, imageMetadata =
     
     if (imageMetadata && patientHeight) {
         const hipAsymmetryCm = calibrateToRealWorldEnhanced(rawHipDiff, patientHeight, imageMetadata, landmarks);
-        data.hipAsymmetry = convertToBodyPercentage(hipAsymmetryCm, patientHeight);
+        if (hipAsymmetryCm !== null) {
+            data.hipAsymmetry = convertToBodyPercentage(hipAsymmetryCm, patientHeight);
+        } else {
+            console.warn('analyzeFrontView: Hip calibration failed - using raw value');
+            data.hipAsymmetry = rawHipDiff * 100; // Fallback normalized
+        }
     } else {
         data.hipAsymmetry = rawHipDiff * 100; // Fallback normalized
     }
@@ -202,7 +223,12 @@ export function analyzeSideView(landmarks, patientHeight = 170, imageMetadata = 
     
     if (imageMetadata && patientHeight && ear && shoulder) {
         const forwardHeadCm = calibrateToRealWorldEnhanced(Math.abs(rawForwardHead), patientHeight, imageMetadata, landmarks);
-        data.forwardHead = convertToBodyPercentage(forwardHeadCm, patientHeight);
+        if (forwardHeadCm !== null) {
+            data.forwardHead = convertToBodyPercentage(forwardHeadCm, patientHeight);
+        } else {
+            console.warn('analyzeSideView: Forward head calibration failed - using raw value');
+            data.forwardHead = rawForwardHead * 100; // Fallback normalized
+        }
     } else {
         data.forwardHead = rawForwardHead * 100; // Fallback normalized
     }
@@ -252,7 +278,12 @@ export function analyzeBackView(landmarks, patientHeight = 170, imageMetadata = 
     
     if (imageMetadata && patientHeight && rawSpinalDeviation > 0) {
         const spinalDeviationCm = calibrateToRealWorldEnhanced(rawSpinalDeviation, patientHeight, imageMetadata, landmarks);
-        data.spinalDeviation = convertToBodyPercentage(spinalDeviationCm, patientHeight);
+        if (spinalDeviationCm !== null) {
+            data.spinalDeviation = convertToBodyPercentage(spinalDeviationCm, patientHeight);
+        } else {
+            console.warn('analyzeBackView: Spinal deviation calibration failed - using raw value');
+            data.spinalDeviation = rawSpinalDeviation * 100; // Fallback normalized
+        }
     } else {
         data.spinalDeviation = rawSpinalDeviation * 100; // Fallback normalized
     }
@@ -268,7 +299,12 @@ export function analyzeBackView(landmarks, patientHeight = 170, imageMetadata = 
     
     if (imageMetadata && patientHeight && rawScapularAsymmetry > 0) {
         const scapularAsymmetryCm = calibrateToRealWorldEnhanced(rawScapularAsymmetry, patientHeight, imageMetadata, landmarks);
-        data.scapularAsymmetry = convertToBodyPercentage(scapularAsymmetryCm, patientHeight);
+        if (scapularAsymmetryCm !== null) {
+            data.scapularAsymmetry = convertToBodyPercentage(scapularAsymmetryCm, patientHeight);
+        } else {
+            console.warn('analyzeBackView: Scapular asymmetry calibration failed - using raw value');
+            data.scapularAsymmetry = rawScapularAsymmetry * 100; // Fallback normalized
+        }
     } else {
         data.scapularAsymmetry = rawScapularAsymmetry * 100; // Fallback normalized
     }
