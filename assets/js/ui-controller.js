@@ -572,7 +572,7 @@ export function handleFileUpload(identifier, event) {
     
     reader.onload = function(e) {
         try {
-            displayUploadedImage(identifier, e.target.result);
+            displayUploadedImage(identifier, e.target.result, file.name);
             hideLoading();
             showNotification('Image uploaded successfully', 'success');
         } catch (error) {
@@ -594,8 +594,9 @@ export function handleFileUpload(identifier, event) {
  * Display uploaded image with enhanced error handling and validation
  * @param {string} identifier - View identifier
  * @param {string} imageSrc - Image data URL
+ * @param {string} filename - Original filename
  */
-function displayUploadedImage(identifier, imageSrc) {
+function displayUploadedImage(identifier, imageSrc, filename = 'uploaded-image.jpg') {
     try {
         // Validate image before displaying
         const img = new Image();
@@ -644,7 +645,7 @@ function displayUploadedImage(identifier, imageSrc) {
                 }
                 UIState.analysisData.advanced.images[view] = {
                     imageData: imageSrc,
-                    filename: 'uploaded-image.jpg',
+                    filename: filename,
                     uploadTime: new Date().toISOString(),
                     dimensions: {
                         width: this.width,
@@ -776,14 +777,20 @@ export async function analyzePosture(mode) {
         progressController.updateProgress(1, 60);
         
         // Process with MediaPipe with timeout
-        const analysisPromise = new Promise(async (resolve, reject) => {
+        const analysisPromise = new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
                 reject(new Error('Analysis timed out. Please try again.'));
             }, 30000); // 30 second timeout
             
             // Handle enhanced detector or regular pose
             if (mode === 'advanced') {
-                UIState.enhancedDetector.on('pose', (results) => {
+                // Remove any existing listeners first
+                if (typeof UIState.enhancedDetector?.removeAllListeners === 'function') {
+                    UIState.enhancedDetector.removeAllListeners('pose');
+                }
+                
+                // Create one-shot listener
+                const onPose = (results) => {
                     clearTimeout(timeout);
                     
                     // Step 4: Process results
@@ -802,8 +809,15 @@ export async function analyzePosture(mode) {
                     progressController.updateProgress(3, 100);
                     progressController.complete();
                     
+                    // Remove listener after use
+                    if (typeof UIState.enhancedDetector?.off === 'function') {
+                        UIState.enhancedDetector.off('pose', onPose);
+                    }
+                    
                     resolve(results);
-                });
+                };
+                
+                UIState.enhancedDetector.on('pose', onPose);
             } else {
                 // Add error checking for pose object with fallback recovery
                 if (!UIState.pose || typeof UIState.pose.onResults !== 'function') {
@@ -812,25 +826,51 @@ export async function analyzePosture(mode) {
                         hasOnResults: UIState.pose ? typeof UIState.pose.onResults : 'no pose object'
                     });
                     
-                    try {
-                        // Force reinitialization
-                        UIState.pose = null;
-                        UIState.pose = await initializePose(mode);
-                        
-                        // Wait a bit more for WASM to load completely
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        
-                        // Check again
-                        if (!UIState.pose || typeof UIState.pose.onResults !== 'function') {
-                            throw new Error('MediaPipe failed to initialize after retry');
-                        }
-                        
-                        console.log('MediaPipe successfully reinitialized');
-                    } catch (retryError) {
-                        console.error('MediaPipe reinitialization failed:', retryError);
-                        reject(new Error('Pose detection engine not ready. Please refresh the page and try again.'));
-                        return;
-                    }
+                    // Reinitialize MediaPipe without async in Promise constructor
+                    Promise.resolve()
+                        .then(() => {
+                            UIState.pose = null;
+                            return initializePose(mode);
+                        })
+                        .then((pose) => {
+                            UIState.pose = pose;
+                            // Wait a bit more for WASM to load completely
+                            return new Promise(res => setTimeout(res, 500));
+                        })
+                        .then(() => {
+                            // Check again
+                            if (!UIState.pose || typeof UIState.pose.onResults !== 'function') {
+                                throw new Error('MediaPipe failed to initialize after retry');
+                            }
+                            
+                            console.log('MediaPipe successfully reinitialized');
+                            
+                            // Set up the results handler
+                            UIState.pose.onResults((results) => {
+                                clearTimeout(timeout);
+                                
+                                // Step 4: Process results
+                                progressController.updateProgress(2, 80);
+                                
+                                if (mode === 'quick') {
+                                    processQuickResults(results);
+                                } else {
+                                    processAdvancedResults(results, 'analysis');
+                                }
+                                
+                                // Complete
+                                progressController.updateProgress(3, 100);
+                                progressController.complete();
+                                
+                                resolve(results);
+                            });
+                        })
+                        .catch((retryError) => {
+                            console.error('MediaPipe reinitialization failed:', retryError);
+                            reject(new Error('Pose detection engine not ready. Please refresh the page and try again.'));
+                        });
+                    
+                    return; // Exit early while reinitialization happens
                 }
                 
                 UIState.pose.onResults((results) => {
@@ -856,7 +896,11 @@ export async function analyzePosture(mode) {
         
         // Send image to the appropriate handler
         if (mode === 'advanced') {
-            await UIState.enhancedDetector.send({image: imageSource});
+            // Send multiple frames for temporal smoothing
+            const frames = UIState.enhancedDetector.historySize || 5;
+            for (let i = 0; i < frames; i++) {
+                await UIState.enhancedDetector.send({image: imageSource});
+            }
         } else {
             // Ensure pose.send is available before calling with fallback check
             if (!UIState.pose || typeof UIState.pose.send !== 'function') {
@@ -1092,10 +1136,11 @@ async function performAdvancedAnalysis() {
             images[view] = img;
         }
         
-        // Initialize MediaPipe if needed
-        if (!UIState.pose) {
-            showLoading('Initializing analysis engine...');
-            UIState.pose = initializePose('advanced'); // No await needed - synchronous!
+        // Initialize enhanced detector for advanced mode
+        if (!UIState.enhancedDetector) {
+            showLoading('Initializing advanced analysis engine...');
+            UIState.enhancedDetector = new EnhancedPoseDetector();
+            await UIState.enhancedDetector.initialize('advanced');
         }
         
         // Process each view with progress updates
@@ -1108,14 +1153,20 @@ async function performAdvancedAnalysis() {
                     reject(new Error(`Analysis of ${view} view timed out`));
                 }, 20000); // 20 second timeout per view
                 
-                // Check if pose is properly initialized
-                if (!UIState.pose || typeof UIState.pose.onResults !== 'function') {
-                    console.error('MediaPipe pose not properly initialized for advanced mode');
-                    reject(new Error('Pose detection engine not available. Please refresh the page.'));
+                // Check if enhanced detector is properly initialized
+                if (!UIState.enhancedDetector || typeof UIState.enhancedDetector.on !== 'function') {
+                    console.error('Enhanced detector not properly initialized for advanced mode');
+                    reject(new Error('Enhanced pose detection engine not available. Please refresh the page.'));
                     return;
                 }
                 
-                UIState.pose.onResults((results) => {
+                // Remove any existing listeners
+                if (typeof UIState.enhancedDetector?.removeAllListeners === 'function') {
+                    UIState.enhancedDetector.removeAllListeners('pose');
+                }
+                
+                // Create one-shot listener
+                const onPose = (results) => {
                     clearTimeout(timeout);
                     try {
                         processAdvancedResults(results, view);
@@ -1124,15 +1175,27 @@ async function performAdvancedAnalysis() {
                     } catch (error) {
                         reject(error);
                     }
-                });
+                    // Remove listener after use
+                    if (typeof UIState.enhancedDetector?.off === 'function') {
+                        UIState.enhancedDetector.off('pose', onPose);
+                    }
+                };
                 
-                // Verify pose.send exists before calling
-                if (!UIState.pose || typeof UIState.pose.send !== 'function') {
-                    reject(new Error('MediaPipe not initialized. Please refresh the page.'));
+                UIState.enhancedDetector.on('pose', onPose);
+                
+                // Verify enhanced send exists
+                if (!UIState.enhancedDetector || typeof UIState.enhancedDetector.send !== 'function') {
+                    reject(new Error('Enhanced detector not initialized. Please refresh the page.'));
                     return;
                 }
                 
-                UIState.pose.send({image: images[view]}).catch(reject);
+                // Send multiple frames for temporal smoothing
+                const frames = UIState.enhancedDetector.historySize || 5;
+                (async () => {
+                    for (let i = 0; i < frames; i++) {
+                        await UIState.enhancedDetector.send({image: images[view]});
+                    }
+                })().catch(reject);
             });
         }
         
@@ -1224,7 +1287,7 @@ function processAdvancedResults(results, view) {
     UIState.analysisData.advanced.landmarks[view] = results.poseLandmarks;
     
     // Update calibration status with enhanced landmark-based system
-    updateCalibrationStatus(results.poseLandmarks, 'advanced');
+    updateCalibrationStatus(results.poseLandmarks, `advanced-${view}`);
     
     // CRITICAL FIX 2d: Get patient height and image metadata for calibration  
     const patientHeight = getPatientHeight('advanced');
@@ -2093,10 +2156,10 @@ export async function exportBiomechanics() {
         }
         
         // Download JSON file
-        downloadJSON(exportData, 'advanced-biomechanics-analysis');
+        downloadJSON(exportData, 'advanced-biomechanics-analysis.json');
         
         // Generate PDF report
-        generatePDF(exportData);
+        generatePDF(exportData, 'advanced-biomechanics-analysis.pdf');
         
         hideLoading();
         showNotification('Biomechanics analysis exported successfully!', 'success');
@@ -2425,10 +2488,10 @@ async function saveClinicalAssessment() {
         }
         
         // Always save locally as backup
-        downloadJSON(assessmentData, 'clinical-assessment');
+        downloadJSON(assessmentData, 'clinical-assessment.json');
         
         // Generate PDF report
-        generatePDF(assessmentData);
+        generatePDF(assessmentData, 'clinical-assessment.pdf');
         
         hideLoading();
         showNotification('Clinical assessment saved successfully!', 'success');
@@ -2809,6 +2872,14 @@ export function restoreSession() {
  * Initialize drag and drop functionality for upload areas
  */
 function initializeDragAndDrop() {
+    // Check if already initialized to prevent duplicate listeners
+    if (document.body.dataset.dndInitialized === 'true') {
+        return;
+    }
+    
+    // Mark as initialized
+    document.body.dataset.dndInitialized = 'true';
+    
     document.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.stopPropagation();
