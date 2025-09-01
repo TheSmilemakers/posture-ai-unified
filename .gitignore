@@ -40,9 +40,12 @@ Thumbs.db
 
 # Environment variables
 .env
+.env.development
+.env.production
 
 # MCP configuration (contains tokens)
 .mcp.json
+.mcp.json.backup
 
 # Backup files
 *.backup

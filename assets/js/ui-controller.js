@@ -776,7 +776,7 @@ export async function analyzePosture(mode) {
         progressController.updateProgress(1, 60);
         
         // Process with MediaPipe with timeout
-        const analysisPromise = new Promise((resolve, reject) => {
+        const analysisPromise = new Promise(async (resolve, reject) => {
             const timeout = setTimeout(() => {
                 reject(new Error('Analysis timed out. Please try again.'));
             }, 30000); // 30 second timeout
