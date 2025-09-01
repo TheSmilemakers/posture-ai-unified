@@ -26,8 +26,8 @@ console.log('Database Service - API Base URL:', API_BASE);
 // SECURITY WARNING: Never commit API keys to source control
 const getAuthHeaders = () => {
     // In production, this should come from a secure source
-    // For now, using a placeholder that should be replaced during deployment
-    const apiKey = window.POSTURE_API_KEY || 'Bearer posture-api-2025-REPLACE-IN-PRODUCTION';
+    // For MVP, using the hardcoded token that matches the API auth check
+    const apiKey = window.POSTURE_API_KEY || 'Bearer posture-api-2025';
     
     return {
         'Authorization': apiKey,
