@@ -1159,55 +1159,61 @@ async function performAdvancedAnalysis() {
         for (const view of views) {
             showLoading(`Analyzing ${view} view (${completedViews + 1}/${views.length})...`);
             
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error(`Analysis of ${view} view timed out`));
-                }, 20000); // 20 second timeout per view
-                
-                // Check if enhanced detector is properly initialized
-                if (!UIState.enhancedDetector || typeof UIState.enhancedDetector.on !== 'function') {
-                    console.error('Enhanced detector not properly initialized for advanced mode');
-                    reject(new Error('Enhanced pose detection engine not available. Please refresh the page.'));
-                    return;
-                }
-                
-                // Remove any existing listeners
-                if (typeof UIState.enhancedDetector?.removeAllListeners === 'function') {
-                    UIState.enhancedDetector.removeAllListeners('pose');
-                }
-                
-                // Create one-shot listener
-                const onPose = (results) => {
-                    clearTimeout(timeout);
-                    try {
-                        processAdvancedResults(results, view);
-                        completedViews++;
-                        resolve(results);
-                    } catch (error) {
-                        reject(error);
+            // CRITICAL FIX: Use IIFE to properly capture view value in closure
+            await ((currentView) => {
+                return new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error(`Analysis of ${currentView} view timed out`));
+                    }, 20000); // 20 second timeout per view
+                    
+                    // Check if enhanced detector is properly initialized
+                    if (!UIState.enhancedDetector || typeof UIState.enhancedDetector.on !== 'function') {
+                        console.error('Enhanced detector not properly initialized for advanced mode');
+                        reject(new Error('Enhanced pose detection engine not available. Please refresh the page.'));
+                        return;
                     }
-                    // Remove listener after use
-                    if (typeof UIState.enhancedDetector?.off === 'function') {
-                        UIState.enhancedDetector.off('pose', onPose);
+                    
+                    // Remove any existing listeners
+                    if (typeof UIState.enhancedDetector?.removeAllListeners === 'function') {
+                        UIState.enhancedDetector.removeAllListeners('pose');
                     }
-                };
-                
-                UIState.enhancedDetector.on('pose', onPose);
-                
-                // Verify enhanced send exists
-                if (!UIState.enhancedDetector || typeof UIState.enhancedDetector.send !== 'function') {
-                    reject(new Error('Enhanced detector not initialized. Please refresh the page.'));
-                    return;
-                }
-                
-                // Send multiple frames for temporal smoothing
-                const frames = UIState.enhancedDetector.historySize || 5;
-                (async () => {
-                    for (let i = 0; i < frames; i++) {
-                        await UIState.enhancedDetector.send({image: images[view]});
+                    
+                    // Create one-shot listener with bound view
+                    const onPose = (results) => {
+                        clearTimeout(timeout);
+                        try {
+                            // Log which view we're processing to verify correct mapping
+                            console.log(`Processing pose results for ${currentView} view`);
+                            processAdvancedResults(results, currentView);
+                            completedViews++;
+                            resolve(results);
+                        } catch (error) {
+                            reject(error);
+                        }
+                        // Remove listener after use
+                        if (typeof UIState.enhancedDetector?.off === 'function') {
+                            UIState.enhancedDetector.off('pose', onPose);
+                        }
+                    };
+                    
+                    UIState.enhancedDetector.on('pose', onPose);
+                    
+                    // Verify enhanced send exists
+                    if (!UIState.enhancedDetector || typeof UIState.enhancedDetector.send !== 'function') {
+                        reject(new Error('Enhanced detector not initialized. Please refresh the page.'));
+                        return;
                     }
-                })().catch(reject);
-            });
+                    
+                    // Send multiple frames for temporal smoothing
+                    const frames = UIState.enhancedDetector.historySize || 5;
+                    (async () => {
+                        console.log(`Sending ${frames} frames for ${currentView} view analysis`);
+                        for (let i = 0; i < frames; i++) {
+                            await UIState.enhancedDetector.send({image: images[currentView]});
+                        }
+                    })().catch(reject);
+                });
+            })(view);
         }
         
         // Compile results
@@ -1368,16 +1374,30 @@ function processAdvancedResults(results, view) {
     
     console.log(`Processed ${view} view with ${measurements.length} measurements`);
     
-    // Draw skeleton
-    const canvas = document.getElementById(`advanced-${view}-canvas`);
+    // Draw skeleton with verification
+    const canvasId = `advanced-${view}-canvas`;
+    const canvas = document.getElementById(canvasId);
     const ctx = canvas.getContext('2d');
     const img = document.getElementById(`advanced-${view}-preview`);
     
+    // Verify we're drawing on the correct canvas
+    console.log(`Drawing ${view} view skeleton on ${canvasId} with ${results.poseLandmarks.length} landmarks`);
+    
+    // Set canvas size to match image
     canvas.width = img.width;
     canvas.height = img.height;
     
+    // Clear any previous drawings to prevent overlay issues
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw the pose skeleton for this specific view
     drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#667eea', lineWidth: 2});
     drawLandmarks(ctx, results.poseLandmarks, {color: '#764ba2', radius: 3});
+    
+    // Add view label for debugging (optional - can be removed later)
+    ctx.font = 'bold 16px Arial';
+    ctx.fillStyle = '#667eea';
+    ctx.fillText(`${view.toUpperCase()} VIEW`, 10, 25);
 }
 
 /**
