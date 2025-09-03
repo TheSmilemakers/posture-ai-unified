@@ -562,12 +562,9 @@ body.modal-open{
     padding-right: env(safe-area-inset-right);
   }
   
-  /* Optimize background image for mobile performance */
+  /* Disable heavy effects on mobile */
   .app-container::before {
-    /* Keep background but optimize for mobile */
-    position: absolute; /* Change from fixed to absolute on mobile */
-    z-index: -1; /* Maintain same z-index as desktop */
-    opacity: .2; /* Slightly reduced opacity for better readability */
+    display: none !important; /* Remove background image */
   }
   
   /* Reduce backdrop filters for performance */

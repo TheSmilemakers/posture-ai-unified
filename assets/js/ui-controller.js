@@ -600,6 +600,8 @@ function displayUploadedImage(identifier, imageSrc, filename = 'uploaded-image.j
     try {
         // Validate image before displaying
         const img = new Image();
+        
+        // Set up handlers BEFORE setting src to avoid race conditions
         img.onload = function() {
             // Check image dimensions
             if (this.width < 200 || this.height < 200) {
@@ -609,14 +611,19 @@ function displayUploadedImage(identifier, imageSrc, filename = 'uploaded-image.j
             
             const preview = document.getElementById(`${identifier}-preview`);
             if (preview) {
-                preview.src = imageSrc;
-                preview.classList.remove('hidden');
-                
-                // Add loading class until image loads
-                preview.classList.add('loading');
+                // Set up preview onload handler BEFORE setting src
                 preview.onload = () => {
                     preview.classList.remove('loading');
                 };
+                
+                preview.onerror = () => {
+                    console.error('Preview image failed to load');
+                    preview.classList.remove('loading');
+                };
+                
+                preview.src = imageSrc;
+                preview.classList.remove('hidden');
+                preview.classList.add('loading');
             }
             
             // Hide camera if active
@@ -667,6 +674,7 @@ function displayUploadedImage(identifier, imageSrc, filename = 'uploaded-image.j
             showNotification('Invalid or corrupted image file. Please try another image.', 'error');
         };
         
+        // Set src AFTER handlers to ensure they're attached before loading
         img.src = imageSrc;
         
     } catch (error) {

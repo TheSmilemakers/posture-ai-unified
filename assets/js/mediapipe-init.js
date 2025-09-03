@@ -148,9 +148,15 @@ export class EnhancedPoseDetector {
                 isCalibrated: this.calibration?.calibrated || false
             };
             
-            // Emit results to callbacks
-            if (this.callbacks.pose) {
-                this.callbacks.pose(enhancedResults);
+            // Emit results to all pose callbacks
+            if (this.callbacks.pose && this.callbacks.pose.length > 0) {
+                this.callbacks.pose.forEach(callback => {
+                    try {
+                        callback(enhancedResults);
+                    } catch (error) {
+                        console.error('Error in pose callback:', error);
+                    }
+                });
             }
         }
     }
@@ -236,16 +242,40 @@ export class EnhancedPoseDetector {
      * Set callback functions
      */
     on(event, callback) {
-        this.callbacks[event] = callback;
+        if (!this.callbacks[event]) {
+            this.callbacks[event] = [];
+        }
+        this.callbacks[event].push(callback);
+    }
+    
+    /**
+     * Remove callback function
+     */
+    off(event, callback) {
+        if (this.callbacks[event]) {
+            this.callbacks[event] = this.callbacks[event].filter(cb => cb !== callback);
+        }
+    }
+    
+    /**
+     * Remove all listeners for an event
+     */
+    removeAllListeners(event) {
+        if (event) {
+            delete this.callbacks[event];
+        } else {
+            this.callbacks = {};
+        }
     }
     
     /**
      * Send image for processing
      */
     async send(input) {
-        if (this.pose) {
-            return this.pose.send(input);
+        if (!this.pose) {
+            throw new Error('MediaPipe pose not properly initialized for advanced mode');
         }
+        return this.pose.send(input);
     }
     
     /**
