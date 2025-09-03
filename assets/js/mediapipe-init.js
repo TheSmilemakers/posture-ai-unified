@@ -62,12 +62,48 @@ export class EnhancedPoseDetector {
         this.landmarkHistory = [];
         this.historySize = 5;
         this.callbacks = {};
+        this.isInitialized = false;
+        this.isInitializing = false;
+        this.initializationPromise = null;
     }
     
     /**
      * Initialize MediaPipe with enhanced configuration
      */
     async initialize(mode = 'advanced') {
+        // If already initialized, return existing pose
+        if (this.isInitialized && this.pose) {
+            console.log('Enhanced pose detector already initialized');
+            return this.pose;
+        }
+        
+        // If currently initializing, wait for completion
+        if (this.isInitializing && this.initializationPromise) {
+            console.log('Waiting for ongoing initialization...');
+            return this.initializationPromise;
+        }
+        
+        // Start initialization
+        this.isInitializing = true;
+        this.initializationPromise = this._performInitialization(mode);
+        
+        try {
+            const pose = await this.initializationPromise;
+            this.isInitialized = true;
+            this.isInitializing = false;
+            return pose;
+        } catch (error) {
+            this.isInitializing = false;
+            this.initializationPromise = null;
+            throw error;
+        }
+    }
+    
+    /**
+     * Perform actual initialization with WASM loading check
+     * @private
+     */
+    async _performInitialization(mode) {
         if (typeof Pose === 'undefined') {
             throw new Error('MediaPipe Pose library not loaded');
         }
@@ -96,8 +132,62 @@ export class EnhancedPoseDetector {
         
         this.pose.onResults(this.onResults.bind(this));
         
+        // Wait for MediaPipe to be fully initialized (WASM loading)
+        await this._waitForMediaPipeReady();
+        
         console.log('Enhanced pose detector initialized for', mode, 'mode');
         return this.pose;
+    }
+    
+    /**
+     * Wait for MediaPipe WASM modules to load
+     * @private
+     */
+    async _waitForMediaPipeReady() {
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 100; // 5 seconds timeout (50ms * 100)
+            
+            const checkReady = () => {
+                attempts++;
+                
+                try {
+                    // Check if pose methods are available
+                    if (!this.pose || !this.pose.send || !this.pose.onResults || !this.pose.setOptions) {
+                        throw new Error('MediaPipe methods not yet available');
+                    }
+                    
+                    // Test if MediaPipe is truly ready by setting up a test callback
+                    // This will throw if WASM modules aren't loaded
+                    this.pose.onResults(() => {});
+                    
+                    // Re-set our actual callback
+                    this.pose.onResults(this.onResults.bind(this));
+                    
+                    // If we get here, MediaPipe is ready
+                    console.log('MediaPipe Enhanced Pose detector ready');
+                    resolve();
+                } catch (e) {
+                    if (attempts >= maxAttempts) {
+                        console.error('MediaPipe initialization timeout', {
+                            error: e.message,
+                            hasPose: !!this.pose,
+                            hasSend: !!(this.pose?.send),
+                            hasOnResults: !!(this.pose?.onResults),
+                            hasSetOptions: !!(this.pose?.setOptions),
+                            attempts
+                        });
+                        reject(new Error('MediaPipe initialization timed out. Please refresh the page.'));
+                    } else {
+                        // Retry after a short delay
+                        setTimeout(checkReady, 50);
+                    }
+                }
+            };
+            
+            // Start checking after a brief delay to allow WASM to begin loading
+            setTimeout(checkReady, 100);
+        });
     }
     
     /**
@@ -149,7 +239,7 @@ export class EnhancedPoseDetector {
             };
             
             // Emit results to all pose callbacks
-            if (this.callbacks.pose && this.callbacks.pose.length > 0) {
+            if (this.callbacks.pose && this.callbacks.pose.size > 0) {
                 this.callbacks.pose.forEach(callback => {
                     try {
                         callback(enhancedResults);
@@ -243,9 +333,9 @@ export class EnhancedPoseDetector {
      */
     on(event, callback) {
         if (!this.callbacks[event]) {
-            this.callbacks[event] = [];
+            this.callbacks[event] = new Set();
         }
-        this.callbacks[event].push(callback);
+        this.callbacks[event].add(callback);
     }
     
     /**
@@ -253,7 +343,7 @@ export class EnhancedPoseDetector {
      */
     off(event, callback) {
         if (this.callbacks[event]) {
-            this.callbacks[event] = this.callbacks[event].filter(cb => cb !== callback);
+            this.callbacks[event].delete(callback);
         }
     }
     
@@ -272,9 +362,20 @@ export class EnhancedPoseDetector {
      * Send image for processing
      */
     async send(input) {
-        if (!this.pose) {
-            throw new Error('MediaPipe pose not properly initialized for advanced mode');
+        // Ensure initialization is complete before sending
+        if (!this.isInitialized) {
+            if (this.isInitializing && this.initializationPromise) {
+                console.log('Waiting for initialization to complete before sending...');
+                await this.initializationPromise;
+            } else {
+                throw new Error('Enhanced detector not initialized. Call initialize() first.');
+            }
         }
+        
+        if (!this.pose || !this.pose.send) {
+            throw new Error('MediaPipe pose not available. Please refresh the page.');
+        }
+        
         return this.pose.send(input);
     }
     
@@ -285,8 +386,12 @@ export class EnhancedPoseDetector {
         if (this.pose) {
             this.pose.close();
         }
+        this.pose = null;
         this.landmarkHistory = [];
         this.callbacks = {};
+        this.isInitialized = false;
+        this.isInitializing = false;
+        this.initializationPromise = null;
     }
 }
 

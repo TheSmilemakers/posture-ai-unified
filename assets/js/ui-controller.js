@@ -350,7 +350,10 @@ export function backToModeSelection() {
         advanced: {
             front: null,
             side: null,
-            back: null
+            back: null,
+            images: {},      // Store uploaded image data with metadata
+            landmarks: {},   // Store MediaPipe pose landmarks for each view
+            patterns: []     // Store detected postural patterns
         }
     };
     
