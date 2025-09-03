@@ -1154,66 +1154,27 @@ async function performAdvancedAnalysis() {
             await UIState.enhancedDetector.initialize('advanced');
         }
         
-        // Process each view with progress updates
+        // Process each view sequentially to avoid race conditions
         let completedViews = 0;
         for (const view of views) {
             showLoading(`Analyzing ${view} view (${completedViews + 1}/${views.length})...`);
             
-            // CRITICAL FIX: Use IIFE to properly capture view value in closure
-            await ((currentView) => {
-                return new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        reject(new Error(`Analysis of ${currentView} view timed out`));
-                    }, 20000); // 20 second timeout per view
-                    
-                    // Check if enhanced detector is properly initialized
-                    if (!UIState.enhancedDetector || typeof UIState.enhancedDetector.on !== 'function') {
-                        console.error('Enhanced detector not properly initialized for advanced mode');
-                        reject(new Error('Enhanced pose detection engine not available. Please refresh the page.'));
-                        return;
-                    }
-                    
-                    // Remove any existing listeners
-                    if (typeof UIState.enhancedDetector?.removeAllListeners === 'function') {
-                        UIState.enhancedDetector.removeAllListeners('pose');
-                    }
-                    
-                    // Create one-shot listener with bound view
-                    const onPose = (results) => {
-                        clearTimeout(timeout);
-                        try {
-                            // Log which view we're processing to verify correct mapping
-                            console.log(`Processing pose results for ${currentView} view`);
-                            processAdvancedResults(results, currentView);
-                            completedViews++;
-                            resolve(results);
-                        } catch (error) {
-                            reject(error);
-                        }
-                        // Remove listener after use
-                        if (typeof UIState.enhancedDetector?.off === 'function') {
-                            UIState.enhancedDetector.off('pose', onPose);
-                        }
-                    };
-                    
-                    UIState.enhancedDetector.on('pose', onPose);
-                    
-                    // Verify enhanced send exists
-                    if (!UIState.enhancedDetector || typeof UIState.enhancedDetector.send !== 'function') {
-                        reject(new Error('Enhanced detector not initialized. Please refresh the page.'));
-                        return;
-                    }
-                    
-                    // Send multiple frames for temporal smoothing
-                    const frames = UIState.enhancedDetector.historySize || 5;
-                    (async () => {
-                        console.log(`Sending ${frames} frames for ${currentView} view analysis`);
-                        for (let i = 0; i < frames; i++) {
-                            await UIState.enhancedDetector.send({image: images[currentView]});
-                        }
-                    })().catch(reject);
-                });
-            })(view);
+            try {
+                // Process this view and wait for completion
+                console.log(`Starting analysis of ${view} view`);
+                const results = await processViewWithTimeout(view, images[view], 20000);
+                
+                // Process results immediately while we know which view it belongs to
+                console.log(`Processing pose results for ${view} view`);
+                processAdvancedResults(results, view);
+                completedViews++;
+                
+                // Small delay between views to ensure clean state
+                await new Promise(resolve => setTimeout(resolve, 100));
+            } catch (error) {
+                console.error(`Error processing ${view} view:`, error);
+                throw error;
+            }
         }
         
         // Compile results
@@ -1230,6 +1191,49 @@ async function performAdvancedAnalysis() {
         // Reset upload states so user can try again
         resetAdvancedUploadStates();
     }
+}
+
+/**
+ * Process a single view with timeout and proper cleanup
+ * @param {string} view - The view to process ('front', 'side', or 'back')
+ * @param {HTMLImageElement} image - The image element to analyze
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise<Object>} Promise resolving to pose results
+ */
+async function processViewWithTimeout(view, image, timeout) {
+    return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            // Clean up listener before rejecting
+            if (UIState.enhancedDetector) {
+                UIState.enhancedDetector.removeAllListeners('pose');
+            }
+            reject(new Error(`Analysis of ${view} view timed out`));
+        }, timeout);
+        
+        // Clear any pending processing and listeners
+        if (UIState.enhancedDetector) {
+            UIState.enhancedDetector.landmarkHistory = [];
+            UIState.enhancedDetector.removeAllListeners('pose');
+        }
+        
+        // Set up one-time listener for this specific view
+        const onPose = (results) => {
+            clearTimeout(timeoutId);
+            // Remove listener immediately to prevent multiple calls
+            UIState.enhancedDetector.off('pose', onPose);
+            resolve(results);
+        };
+        
+        UIState.enhancedDetector.on('pose', onPose);
+        
+        // Send image for processing
+        console.log(`Sending ${view} image for analysis`);
+        UIState.enhancedDetector.send({image: image}).catch(error => {
+            clearTimeout(timeoutId);
+            UIState.enhancedDetector.off('pose', onPose);
+            reject(error);
+        });
+    });
 }
 
 /**
@@ -1297,11 +1301,16 @@ function processAdvancedResults(results, view) {
         return;
     }
     
-    // Store raw landmarks for future use
+    // Store landmarks with view metadata to prevent mixing
     if (!UIState.analysisData.advanced.landmarks) {
         UIState.analysisData.advanced.landmarks = {};
     }
-    UIState.analysisData.advanced.landmarks[view] = results.poseLandmarks;
+    UIState.analysisData.advanced.landmarks[view] = {
+        view: view,
+        landmarks: results.poseLandmarks,
+        timestamp: Date.now(),
+        processedAt: new Date().toISOString()
+    };
     
     // Update calibration status with enhanced landmark-based system
     updateCalibrationStatus(results.poseLandmarks, `advanced-${view}`);
@@ -1380,8 +1389,16 @@ function processAdvancedResults(results, view) {
     const ctx = canvas.getContext('2d');
     const img = document.getElementById(`advanced-${view}-preview`);
     
-    // Verify we're drawing on the correct canvas
-    console.log(`Drawing ${view} view skeleton on ${canvasId} with ${results.poseLandmarks.length} landmarks`);
+    // Verify we have the correct landmarks for this view
+    const storedData = UIState.analysisData.advanced.landmarks[view];
+    if (!storedData || storedData.view !== view) {
+        console.error(`Landmark mismatch: Expected ${view}, got ${storedData?.view || 'none'}`);
+        return;
+    }
+    
+    // Use the verified landmarks from storage
+    const verifiedLandmarks = storedData.landmarks;
+    console.log(`Drawing ${view} view skeleton on ${canvasId} with ${verifiedLandmarks.length} landmarks from stored data`);
     
     // Set canvas size to match image
     canvas.width = img.width;
@@ -1390,14 +1407,18 @@ function processAdvancedResults(results, view) {
     // Clear any previous drawings to prevent overlay issues
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw the pose skeleton for this specific view
-    drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#667eea', lineWidth: 2});
-    drawLandmarks(ctx, results.poseLandmarks, {color: '#764ba2', radius: 3});
+    // Draw the pose skeleton using verified landmarks
+    drawConnectors(ctx, verifiedLandmarks, POSE_CONNECTIONS, {color: '#667eea', lineWidth: 2});
+    drawLandmarks(ctx, verifiedLandmarks, {color: '#764ba2', radius: 3});
     
-    // Add view label for debugging (optional - can be removed later)
+    // Add debug label showing which view's skeleton this is
     ctx.font = 'bold 16px Arial';
     ctx.fillStyle = '#667eea';
-    ctx.fillText(`${view.toUpperCase()} VIEW`, 10, 25);
+    ctx.fillText(`${view.toUpperCase()} SKELETON`, 10, 25);
+    
+    // Additional debug info
+    ctx.font = '12px Arial';
+    ctx.fillText(`Processed: ${storedData.processedAt}`, 10, 45);
 }
 
 /**
@@ -2123,21 +2144,24 @@ function saveCurrentWork() {
 /**
  * Generate clinical report
  */
-export function generateClinicalReport() {
+export async function generateClinicalReport() {
     showLoading();
     
-    setTimeout(() => {
-        const reportData = {
-            ...UIState.analysisData.advanced,
-            generatedAt: new Date().toISOString(),
-            clinic: 'Two Tonys Treatment Clinic'
-        };
-        
-        // In production, this would generate an actual PDF
-        console.log('Report data:', reportData);
-        hideLoading();
-        showNotification('Clinical report generated!', 'success');
-    }, 2000);
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const reportData = {
+                ...UIState.analysisData.advanced,
+                generatedAt: new Date().toISOString(),
+                clinic: 'Two Tonys Treatment Clinic'
+            };
+            
+            // In production, this would generate an actual PDF
+            console.log('Report data:', reportData);
+            hideLoading();
+            showNotification('Clinical report generated!', 'success');
+            resolve();
+        }, 2000);
+    });
 }
 
 /**

@@ -215,13 +215,16 @@ export class EnhancedPoseDetector {
             this.landmarkHistory.shift();
         }
         
-        // Gate: Ensure we have enough frames before processing
-        if (this.landmarkHistory.length < this.historySize) {
-            return; // Return early until buffer is filled
+        // Gate: Ensure we have at least one frame before processing
+        if (this.landmarkHistory.length === 0) {
+            return; // No frames to process
         }
         
-        // Apply temporal smoothing
-        const smoothedLandmarks = this.temporalSmoothing();
+        // Apply temporal smoothing only if we have enough frames
+        // For static images (single frame), use the landmarks directly
+        const smoothedLandmarks = this.landmarkHistory.length >= this.historySize 
+            ? this.temporalSmoothing() 
+            : results.poseLandmarks;
         
         // Calculate overall confidence
         const confidence = this.calculateConfidence(smoothedLandmarks);

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Skeleton Fix - Posture AI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-steps {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .test-steps ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .test-steps li {
+            margin: 5px 0;
+        }
+        .expected-results {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .console-output {
+            background-color: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+        .error {
+            color: #c62828;
+            font-weight: bold;
+        }
+        button {
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Advanced Mode Skeleton Fix Test</h1>
+        
+        <div class="test-section">
+            <h2>🎯 What We Fixed</h2>
+            <ul>
+                <li><strong>Sequential Processing:</strong> Images are now processed one at a time to prevent race conditions</li>
+                <li><strong>Enhanced Landmark Storage:</strong> Each view's landmarks are stored with metadata to prevent mixing</li>
+                <li><strong>Verification Before Drawing:</strong> System verifies correct landmarks before drawing skeletons</li>
+                <li><strong>Debug Labels:</strong> Each skeleton is labeled to confirm correct mapping</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 Test Steps</h2>
+            <div class="test-steps">
+                <ol>
+                    <li>Open the main app: <button onclick="window.open('/', '_blank')">Open App</button></li>
+                    <li>Enter password: <code>posture2025</code></li>
+                    <li>Select "Advanced Analysis" mode</li>
+                    <li>Upload 3 different images:
+                        <ul>
+                            <li>Front view: Person facing camera, arms slightly out</li>
+                            <li>Side view: Person in profile</li>
+                            <li>Back view: Person facing away from camera</li>
+                        </ul>
+                    </li>
+                    <li>Wait for "Analysis complete" message</li>
+                    <li>Check the console output below</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>✅ Expected Results</h2>
+            <div class="expected-results">
+                <h3>Console Output Should Show:</h3>
+                <div class="console-output">Starting analysis of front view
+Sending front image for analysis
+Processing pose results for front view
+Drawing front view skeleton on advanced-front-canvas with 33 landmarks from stored data
+
+Starting analysis of side view
+Sending side image for analysis
+Processing pose results for side view
+Drawing side view skeleton on advanced-side-canvas with 33 landmarks from stored data
+
+Starting analysis of back view
+Sending back image for analysis
+Processing pose results for back view
+Drawing back view skeleton on advanced-back-canvas with 33 landmarks from stored data</div>
+                
+                <h3>Visual Confirmation:</h3>
+                <ul>
+                    <li>✅ Front image has "FRONT SKELETON" label with forward-facing pose overlay</li>
+                    <li>✅ Side image has "SIDE SKELETON" label with profile pose overlay</li>
+                    <li>✅ Back image has "BACK SKELETON" label with rear-facing pose overlay</li>
+                    <li>✅ Each skeleton includes timestamp showing when it was processed</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>❌ If Issues Persist</h2>
+            <p>If skeletons are still mismatched after these fixes:</p>
+            <ol>
+                <li>Check browser console for any error messages</li>
+                <li>Clear browser cache and reload the page</li>
+                <li>Try with different images to rule out image-specific issues</li>
+                <li>Look for any "Landmark mismatch" errors in console</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 Debug Information</h2>
+            <p>The fix adds several debug features:</p>
+            <ul>
+                <li>Sequential processing prevents MediaPipe timestamp errors</li>
+                <li>Each view is processed with a 100ms delay between them</li>
+                <li>Landmarks are stored with view name and timestamp</li>
+                <li>Verification ensures correct landmarks are used for each canvas</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
