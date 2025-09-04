@@ -8,6 +8,10 @@ import { initializeUI, selectMode, backToModeSelection, showTab, startCamera, cl
          resetQuickAnalysis, resetAdvancedAnalysis, saveQuickResults } from './ui-controller.js';
 import { sanitizer } from './sanitizer.js';
 
+// Version check to ensure latest code is running
+const APP_VERSION = '1.0.7';
+console.log(`Posture AI App Version: ${APP_VERSION}`);
+
 // Error Boundary Implementation
 class ErrorBoundary {
     constructor() {
@@ -322,6 +326,20 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Register service worker for PWA support (if available)
     if ('serviceWorker' in navigator) {
+        // Check for updates and force refresh if needed
+        navigator.serviceWorker.ready.then(registration => {
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'activated') {
+                        console.log('New service worker activated, reloading page...');
+                        // Force reload to get fresh code
+                        window.location.reload(true);
+                    }
+                });
+            });
+        });
+        
         navigator.serviceWorker.register('sw.js').catch(err => {
             console.log('Service worker registration failed:', err);
         });

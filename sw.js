@@ -3,7 +3,7 @@
  * Enables offline functionality and caching
  */
 
-const CACHE_NAME = 'posture-ai-v1.0.6'; // 50% opacity UI with Sansation font
+const CACHE_NAME = 'posture-ai-v1.0.7'; // Fixed advanced mode initialization and skeleton overlay
 const urlsToCache = [
     './',
     './index.html',
@@ -28,6 +28,9 @@ const urlsToCache = [
 
 // Install event - cache resources
 self.addEventListener('install', event => {
+    // Force immediate activation of new service worker
+    self.skipWaiting();
+    
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
@@ -39,6 +42,7 @@ self.addEventListener('install', event => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', event => {
+    // Claim all clients immediately
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
@@ -49,12 +53,42 @@ self.addEventListener('activate', event => {
                     }
                 })
             );
+        }).then(() => {
+            // Force all tabs to use new service worker immediately
+            return clients.claim();
         })
     );
 });
 
 // Fetch event - serve from cache when possible
 self.addEventListener('fetch', event => {
+    // For JavaScript files, always fetch fresh to avoid stale code
+    const isJavaScript = event.request.url.includes('.js');
+    const isLocalAsset = event.request.url.includes('/assets/js/');
+    
+    if (isJavaScript && isLocalAsset) {
+        // Network-first strategy for JS files
+        event.respondWith(
+            fetch(event.request)
+                .then(response => {
+                    // Update cache with fresh version
+                    if (response && response.status === 200) {
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME).then(cache => {
+                            cache.put(event.request, responseToCache);
+                        });
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    // Fall back to cache if network fails
+                    return caches.match(event.request);
+                })
+        );
+        return;
+    }
+    
+    // Cache-first strategy for other resources
     event.respondWith(
         caches.match(event.request)
             .then(response => {
