@@ -9,9 +9,9 @@ import { initializeUI, selectMode, backToModeSelection, showTab, startCamera, cl
 import { sanitizer } from './sanitizer.js';
 
 // Version check to ensure latest code is running
-const APP_VERSION = '1.0.8';
+const APP_VERSION = '1.0.9';
 console.log(`Posture AI App Version: ${APP_VERSION}`);
-console.log(`Cache version: ${APP_VERSION} - MediaPipe static image fixes applied`);
+console.log(`Cache version: ${APP_VERSION} - MediaPipe onResults callback fixes for static images`);
 
 // Error Boundary Implementation
 class ErrorBoundary {

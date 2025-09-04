@@ -3,7 +3,7 @@
  * Enables offline functionality and caching
  */
 
-const CACHE_NAME = 'posture-ai-v1.0.8'; // Force cache refresh for MediaPipe static image fixes
+const CACHE_NAME = 'posture-ai-v1.0.9'; // Fix MediaPipe onResults callback for static images
 const urlsToCache = [
     './',
     './index.html',

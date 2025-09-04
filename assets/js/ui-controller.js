@@ -1223,6 +1223,14 @@ async function processViewWithTimeout(view, image, timeout) {
             clearTimeout(timeoutId);
             // Remove listener immediately to prevent multiple calls
             UIState.enhancedDetector.off('pose', onPose);
+            
+            // Check if we got valid results
+            if (!results || !results.poseLandmarks) {
+                console.warn(`No pose detected for ${view} view`);
+                // Continue with empty results rather than failing
+                results = { poseLandmarks: null, confidence: 0, stability: 0 };
+            }
+            
             resolve(results);
         };
         

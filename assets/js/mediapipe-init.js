@@ -127,7 +127,7 @@ export class EnhancedPoseDetector {
         // Optimized configuration based on MediaPipe best practices
         this.pose.setOptions({
             modelComplexity: complexityMap[mode] || 2,  // Maximum accuracy for clinical use
-            smoothLandmarks: !this.isStaticImageMode,  // Disable smoothing for static images
+            smoothLandmarks: true,                      // Keep this true - MediaPipe needs it internally
             enableSegmentation: false,                  // Not needed, saves performance
             smoothSegmentation: false,                  // Not using segmentation
             minDetectionConfidence: 0.7,                // Good balance for clinical accuracy
@@ -198,8 +198,21 @@ export class EnhancedPoseDetector {
      * Process pose results with temporal smoothing
      */
     onResults(results) {
+        console.log('EnhancedPoseDetector.onResults called', {
+            hasLandmarks: !!results.poseLandmarks,
+            landmarkCount: results.poseLandmarks?.length,
+            isStaticMode: this.isStaticImageMode
+        });
+
         if (!results.poseLandmarks) {
             console.warn('No pose detected in frame');
+            // Emit empty result for static images to prevent timeout
+            if (this.isStaticImageMode && this.callbacks.pose && this.callbacks.pose.size > 0) {
+                console.log('Emitting empty result for static image');
+                this.callbacks.pose.forEach(callback => {
+                    callback({ poseLandmarks: null, confidence: 0, stability: 0 });
+                });
+            }
             return;
         }
         
@@ -213,6 +226,31 @@ export class EnhancedPoseDetector {
             return;
         }
         
+        // For static images, process immediately without buffering
+        if (this.isStaticImageMode) {
+            // Skip history buffering for static images
+            const enhancedResults = {
+                ...results,
+                poseLandmarks: results.poseLandmarks,
+                confidence: this.calculateConfidence(results.poseLandmarks),
+                stability: 1.0, // Static images have perfect stability
+                isCalibrated: false
+            };
+            
+            console.log('Static image processed, emitting results');
+            if (this.callbacks.pose && this.callbacks.pose.size > 0) {
+                this.callbacks.pose.forEach(callback => {
+                    try {
+                        callback(enhancedResults);
+                    } catch (error) {
+                        console.error('Error in pose callback:', error);
+                    }
+                });
+            }
+            return;
+        }
+
+        // Video processing with temporal smoothing
         // Add to history for temporal smoothing
         this.landmarkHistory.push(results.poseLandmarks);
         if (this.landmarkHistory.length > this.historySize) {
@@ -225,7 +263,6 @@ export class EnhancedPoseDetector {
         }
         
         // Apply temporal smoothing only if we have enough frames
-        // For static images (single frame), use the landmarks directly
         const smoothedLandmarks = this.landmarkHistory.length >= this.historySize 
             ? this.temporalSmoothing() 
             : results.poseLandmarks;
@@ -236,10 +273,8 @@ export class EnhancedPoseDetector {
         // Check landmark stability
         const stability = this.checkLandmarkStability();
         
-        // For static images, skip stability check; for video, require stability > 0.8
-        const passesQualityCheck = this.isStaticImageMode 
-            ? confidence >= this.confidenceThreshold  // Static: confidence only
-            : (confidence >= this.confidenceThreshold && stability > 0.8);  // Video: both checks
+        // For video, require both confidence and stability
+        const passesQualityCheck = confidence >= this.confidenceThreshold && stability > 0.8;
             
         if (passesQualityCheck) {
             const enhancedResults = {
