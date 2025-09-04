@@ -65,6 +65,7 @@ export class EnhancedPoseDetector {
         this.isInitialized = false;
         this.isInitializing = false;
         this.initializationPromise = null;
+        this.isStaticImageMode = false;  // Flag for static image processing
     }
     
     /**
@@ -120,10 +121,13 @@ export class EnhancedPoseDetector {
             'advanced': 2
         };
         
+        // Detect if we're in static image mode (advanced mode processes static images)
+        this.isStaticImageMode = (mode === 'advanced');
+        
         // Optimized configuration based on MediaPipe best practices
         this.pose.setOptions({
             modelComplexity: complexityMap[mode] || 2,  // Maximum accuracy for clinical use
-            smoothLandmarks: true,                      // Essential for stable measurements
+            smoothLandmarks: !this.isStaticImageMode,  // Disable smoothing for static images
             enableSegmentation: false,                  // Not needed, saves performance
             smoothSegmentation: false,                  // Not using segmentation
             minDetectionConfidence: 0.7,                // Good balance for clinical accuracy
@@ -232,7 +236,12 @@ export class EnhancedPoseDetector {
         // Check landmark stability
         const stability = this.checkLandmarkStability();
         
-        if (confidence >= this.confidenceThreshold && stability > 0.8) {
+        // For static images, skip stability check; for video, require stability > 0.8
+        const passesQualityCheck = this.isStaticImageMode 
+            ? confidence >= this.confidenceThreshold  // Static: confidence only
+            : (confidence >= this.confidenceThreshold && stability > 0.8);  // Video: both checks
+            
+        if (passesQualityCheck) {
             const enhancedResults = {
                 ...results,
                 poseLandmarks: smoothedLandmarks,

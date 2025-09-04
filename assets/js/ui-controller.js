@@ -1214,6 +1214,8 @@ async function processViewWithTimeout(view, image, timeout) {
         if (UIState.enhancedDetector) {
             UIState.enhancedDetector.landmarkHistory = [];
             UIState.enhancedDetector.removeAllListeners('pose');
+            // Ensure static image mode is enabled for proper processing
+            UIState.enhancedDetector.isStaticImageMode = true;
         }
         
         // Set up one-time listener for this specific view

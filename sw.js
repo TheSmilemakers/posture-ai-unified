@@ -109,11 +109,16 @@ self.addEventListener('fetch', event => {
                     // Clone the response
                     const responseToCache = response.clone();
 
-                    // Add to cache
-                    caches.open(CACHE_NAME)
-                        .then(cache => {
-                            cache.put(event.request, responseToCache);
-                        });
+                    // Add to cache (only GET requests can be cached)
+                    if (event.request.method === 'GET') {
+                        caches.open(CACHE_NAME)
+                            .then(cache => {
+                                cache.put(event.request, responseToCache);
+                            })
+                            .catch(error => {
+                                console.warn('Cache put failed:', error);
+                            });
+                    }
 
                     return response;
                 });
