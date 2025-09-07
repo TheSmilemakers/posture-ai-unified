@@ -12,6 +12,32 @@
 /* ========== Reset ========== */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 
+/* ========== Safe Area Utilities ========== */
+/* Apply safe area padding consistently across the app */
+@supports (padding: env(safe-area-inset-left)) {
+  .app-container,
+  .mode-selection,
+  .patient-selection,
+  .main-content {
+    padding-left: max(var(--spacing-lg), env(safe-area-inset-left));
+    padding-right: max(var(--spacing-lg), env(safe-area-inset-right));
+  }
+  
+  /* Bottom safe area for fixed/sticky elements */
+  .action-bar,
+  .bottom-nav,
+  .footer {
+    padding-bottom: max(var(--spacing-md), env(safe-area-inset-bottom));
+  }
+  
+  /* Ensure modals respect safe areas */
+  .modal__panel,
+  .clinical-disclaimer__content {
+    margin: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+
 /* ========== Tokens ========== */
 :root{
   color-scheme: light dark;
@@ -155,10 +181,10 @@ html[data-theme="dark"]{ color-scheme:dark !important; }
 /* ========== FIXED BASE LAYOUT FOR PROPER SCROLLING ========== */
 /* Desktop and Mobile unified approach */
 html{
-  /* Fixed: Removed conflicting height declarations */
+  /* Fixed: Stable viewport height */
   height: 100%;
   position: relative;
-  /* Prevent iOS bounce at document edges */
+  /* Prevent browser pull-to-refresh globally */
   overscroll-behavior: none;
 }
 
@@ -177,6 +203,13 @@ body{
   -moz-osx-font-smoothing:grayscale;
   text-rendering:optimizeLegibility;
   transition:var(--transition-theme);
+}
+
+/* Add smooth scrolling only for users who haven't opted out */
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    scroll-behavior: smooth;
+  }
 }
 
 /* Typography */
@@ -223,7 +256,7 @@ body.no-background .app-container::before{display:none}
   background:rgba(248,243,206,.5);
   backdrop-filter:blur(20px) saturate(180%);
   -webkit-backdrop-filter:blur(20px) saturate(180%);
-  /* Desktop: fixed, Mobile: sticky */
+  /* Fixed on desktop, overridden to sticky on mobile */
   position:fixed;
   top:0;
   left:0;
@@ -234,15 +267,17 @@ body.no-background .app-container::before{display:none}
   display:flex;
   align-items:center;
   justify-content:space-between;
-  /* Fixed: Removed transform for better mobile performance */
-  transition:opacity .3s cubic-bezier(.4,0,.2,1);
+  /* Use transform for smooth animations */
+  transform: translateY(0);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
   contain:layout style;
 }
 
 .app-header.header-hidden{
-  /* Fixed: Use opacity instead of transform */
-  opacity:0;
-  pointer-events:none;
+  /* Transform provides better performance than opacity */
+  transform: translateY(-100%);
+  /* Keep interactive for mouse hover reveal */
+  pointer-events: auto;
 }
 
 @media (prefers-color-scheme: dark){
@@ -418,12 +453,21 @@ html[data-theme="dark"] .app-header{background:rgba(42,42,39,.5)}
 .modal[open],.modal.is-open{display:grid;place-items:center}
 .modal__panel{background:var(--color-bg-tertiary);color:var(--color-text-primary);border-radius:var(--border-radius-lg);box-shadow:var(--shadow-xl);width:min(640px,92vw);padding:var(--spacing-xl);max-height:90vh;overflow-y:auto}
 
-/* Fixed: Modal open state to prevent background scroll */
+/* Fixed: Modal open state - better mobile scroll prevention */
 body.modal-open{
+  /* Preserve scroll position without position:fixed */
   overflow:hidden !important;
-  position:fixed !important;
-  width:100% !important;
-  height:100% !important;
+  /* Use touch-action to prevent scrolling on mobile */
+  touch-action:none !important;
+  /* Prevent iOS bounce */
+  overscroll-behavior:contain !important;
+}
+
+/* Store and restore scroll position when modal opens/closes */
+body.modal-open[data-scroll-position] {
+  /* Applied via JS to maintain position */
+  position: relative;
+  top: var(--scroll-offset, 0);
 }
 
 .clinical-disclaimer{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:var(--z-modal);padding:20px}
@@ -510,45 +554,58 @@ body.modal-open{
 
 /* ========== MOBILE-SPECIFIC FIXES ========== */
 @media (max-width:768px){
-  /* Fixed: Proper mobile scrolling setup */
+  /* Fixed: Unified mobile scrolling approach */
   html {
-    /* Allow natural document flow */
+    /* Stable height for mobile viewport */
     height: 100%;
-    overflow: visible;
+    /* Let body handle scrolling, not html */
+    overflow: hidden;
+    /* Prevent pull-to-refresh on PWA */
+    overscroll-behavior-y: contain;
   }
   
   body {
-    /* Let body handle scrolling on mobile */
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
+    /* Mobile-optimized scrolling setup */
+    height: 100dvh;
+    /* Fallbacks for older browsers */
+    height: 100vh;
+    height: -webkit-fill-available;
+    /* Only body scrolls vertically */
     overflow-x: hidden;
     overflow-y: auto;
-    /* iOS smooth scrolling */
+    /* Smooth momentum scrolling on iOS */
     -webkit-overflow-scrolling: touch;
-    /* Prevent horizontal overflow */
+    /* Prevent horizontal scroll from wide content */
     max-width: 100vw;
+    /* Better scroll performance */
+    will-change: scroll-position;
+    /* Remove smooth scroll on mobile - handled globally with preference */
   }
   
   .app-container {
-    /* Not a scroll container on mobile */
+    /* Container follows body scroll */
     overflow: visible !important;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    /* Remove any transforms */
+    /* No transforms for better performance */
     transform: none !important;
     -webkit-transform: none !important;
+    /* Contain layout for performance */
+    contain: layout style;
   }
   
-  /* Fixed: Make header sticky instead of fixed on mobile */
+  /* Fixed: Sticky header on mobile for better scrolling */
   .app-header {
-    position: sticky;
-    position: -webkit-sticky;
+    /* Override desktop fixed positioning */
+    position: sticky !important;
+    position: -webkit-sticky !important;
+    /* Stick to top */
+    top: 0;
     height:56px;
     padding-block:8px;
     padding-inline:12px;
-    /* Remove transform-based hiding */
-    transform: none !important;
-    -webkit-transform: none !important;
+    /* Allow transform for hide/show animation */
+    transition: transform .3s cubic-bezier(.4,0,.2,1) !important;
   }
   
   /* Adjust content for sticky header */
@@ -564,10 +621,10 @@ body.modal-open{
   
   /* Optimize background image for mobile performance */
   .app-container::before {
-    /* Keep background but optimize for mobile */
-    position: absolute; /* Change from fixed to absolute on mobile */
-    z-index: -1; /* Maintain same z-index as desktop */
-    opacity: .2; /* Slightly reduced opacity for better readability */
+    display: block !important;        /* keep BG visible */
+    opacity: .22;                     /* slightly lighter for readability */
+    background-attachment: scroll;    /* avoids jank on iOS */
+    will-change: opacity;             /* cheaper than transform */
   }
   
   /* Reduce backdrop filters for performance */
@@ -626,13 +683,14 @@ body.modal-open{
       -webkit-overflow-scrolling: touch;
     }
     
-    /* Prevent iOS rubber-band effect on fixed elements */
+    /* iOS header optimizations */
     .app-header {
-      /* Use sticky for better iOS performance */
-      position: sticky;
-      position: -webkit-sticky;
-      transform: none !important;
-      -webkit-transform: none !important;
+      /* Already sticky from mobile styles, just ensure it works */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      /* Prevent janky animations on iOS */
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
     }
     
     /* Better touch handling */
