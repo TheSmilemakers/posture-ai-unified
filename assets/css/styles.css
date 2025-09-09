@@ -183,9 +183,8 @@ html[data-theme="dark"]{ color-scheme:dark !important; }
 html{
   /* Fixed: Stable viewport height */
   height: 100%;
-  position: relative;
-  /* Prevent browser pull-to-refresh globally */
-  /* REMOVED overscroll-behavior: none - conflicts with body rule */
+  overflow: visible; /* Let body handle scrolling */
+  position: relative; /* Keep relative, not fixed */
 }
 
 body{
@@ -197,7 +196,9 @@ body{
   min-height: 100vh;
   margin:0;
   text-align:center;
-  position:relative;
+  position: relative; /* NOT fixed - this is critical */
+  overflow-x: hidden; /* Prevent horizontal scroll */
+  overscroll-behavior: none; /* Single rule, no duplicates */
   width:100%;
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
@@ -554,96 +555,76 @@ body.modal-open[data-scroll-position] {
 
 /* ========== MOBILE-SPECIFIC FIXES ========== */
 @media (max-width:768px){
-  /* Fixed: Unified mobile scrolling approach */
   html {
-    /* Stable height for mobile viewport */
     height: 100%;
-    /* Let body handle scrolling, not html */
-    /* REMOVED overflow: hidden - was blocking mobile scroll */
-    /* Prevent pull-to-refresh on PWA */
-    /* REMOVED overscroll-behavior-y: contain - duplicate rule */
+    overflow: visible !important;
   }
   
   body {
-    /* Mobile-optimized scrolling setup */
-    height: 100vh;
-    height: -webkit-fill-available;
-    height: 100dvh;
-    /* Only body scrolls vertically */
+    /* FIXED: Proper mobile scrolling container */
+    min-height: 100vh;
+    min-height: -webkit-fill-available; /* iOS safe area */
     overflow-x: hidden;
     overflow-y: auto;
-    /* Smooth momentum scrolling on iOS */
     -webkit-overflow-scrolling: touch;
-    /* Prevent horizontal scroll from wide content */
-    max-width: 100vw;
-    /* REMOVED will-change: scroll-position - causes performance issues */
-    /* Remove smooth scroll on mobile - handled globally with preference */
-    /* Single overscroll-behavior rule for entire app */
-    overscroll-behavior: auto contain;
+    overscroll-behavior-y: contain; /* Prevent pull-to-refresh */
+    position: relative !important; /* Not fixed! Critical for iOS */
+    width: 100%;
   }
   
   .app-container {
-    /* Container follows body scroll */
-    overflow: visible !important;
+    /* FIXED: Natural document flow */
+    position: relative !important;
+    width: 100%;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    /* No transforms for better performance */
-    transform: none !important;
-    -webkit-transform: none !important;
-    /* Contain layout for performance */
-    contain: layout style;
+    overflow: visible !important; /* Let content flow naturally */
     /* Add safe area padding for notched devices */
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom, 20px);
   }
   
-  /* Fixed: Sticky header on mobile for better scrolling */
+  /* FIXED: Remove problematic sticky header */
   .app-header {
-    /* Override desktop fixed positioning */
-    position: sticky !important;
-    position: -webkit-sticky !important;
-    /* Stick to top */
-    top: 0;
+    position: relative !important; /* Not sticky - causes iOS issues */
+    top: auto !important;
+    z-index: var(--z-header);
+    transition: none !important; /* Remove animations on mobile */
     height:56px;
     padding-block:8px;
     padding-inline:12px;
-    /* Remove transform transition on mobile to prevent scroll issues */
-    transition: opacity .3s cubic-bezier(.4,0,.2,1) !important;
   }
   
-  /* Hide header with opacity instead of transform on mobile */
-  .app-header.header-hidden {
-    opacity: 0;
-    pointer-events: none;
-  }
-  
-  /* Adjust content for sticky header */
+  /* Content padding adjustments */
   .mode-selection,
   .patient-selection,
   .main-content {
-    padding-top: var(--spacing-md); /* Reduced since header is sticky */
-    /* Add safe area padding */
+    padding-top: var(--spacing-md);
     padding-bottom: env(safe-area-inset-bottom, 20px);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
   
-  /* Optimize background image for mobile performance */
-  .app-container::before {
-    display: block !important;        /* keep BG visible */
-    opacity: .22;                     /* slightly lighter for readability */
-    background-attachment: scroll;    /* avoids jank on iOS */
-    will-change: opacity;             /* cheaper than transform */
-  }
-  
-  /* Reduce backdrop filters for performance */
+  /* FIXED: Remove heavy effects on mobile */
   .mode-card,
   .photo-card,
   .upload-area,
   .info-card {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    background: var(--color-bg-secondary) !important;
+  }
+  
+  /* FIXED: Prevent font size zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents iOS zoom */
+  }
+  
+  /* Form inputs and buttons - better touch targets */
+  .btn, .tab-btn, .form-input, .form-select {
+    min-height: 44px; /* iOS touch target recommendation */
+    touch-action: manipulation; /* Prevents double-tap zoom */
   }
   
   /* Mobile-specific adjustments */

@@ -34,12 +34,12 @@ const MEASUREMENT_UNITS = {
     'pelvicAngle': 'degrees', 
     'kyphosisAngle': 'degrees',
     
-    // Asymmetries - FIXED: should be percent, not mm
-    'shoulderAsymmetry': 'percent',     // Was: 'mm' ❌ Now: 'percent' ✅
-    'hipAsymmetry': 'percent',          // Was: 'mm' ❌ Now: 'percent' ✅
-    'forwardHead': 'percent',           // Was: 'cm' ❌ Now: 'percent' ✅
-    'spinalDeviation': 'percent',       // Was: 'units' ❌ Now: 'percent' ✅
-    'scapularAsymmetry': 'percent',     // Was: 'units' ❌ Now: 'percent' ✅
+    // FIXED: Asymmetries should be in real-world units (cm)
+    'shoulderAsymmetry': 'cm',          // Real measurement
+    'hipAsymmetry': 'cm',               // Real measurement
+    'forwardHead': 'cm',                // Real measurement
+    'spinalDeviation': 'cm',            // Real measurement
+    'scapularAsymmetry': 'cm',          // Real measurement
     
     // Weight distribution - correctly assigned
     'weightDistributionLeft': 'percent',
@@ -97,7 +97,8 @@ export function initializeUI() {
     // Add keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);
     
-    // REMOVED initializeTouchHandlers() - was interfering with natural iOS scroll
+    // FIXED: Add proper touch handlers for mobile
+    initializeMobileTouchHandlers();
     
     // Initialize auto-hide header
     initializeAutoHideHeader();
@@ -251,6 +252,48 @@ function initializeAutoHideHeader() {
     });
     
     console.log('✅ Auto-hide header initialized');
+}
+
+/**
+ * Initialize mobile touch handlers
+ */
+function initializeMobileTouchHandlers() {
+    // Prevent double-tap zoom on buttons
+    document.addEventListener('touchend', (e) => {
+        if (e.target.matches('button, .btn, .tab-btn')) {
+            e.preventDefault();
+            e.target.click(); // Trigger click programmatically
+        }
+    }, { passive: false });
+    
+    // Fix iOS scroll bounce at boundaries
+    let startY = 0;
+    document.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].pageY;
+    }, { passive: true });
+    
+    document.addEventListener('touchmove', (e) => {
+        const el = document.querySelector('.app-container');
+        if (!el) return;
+        
+        const scrollTop = el.scrollTop;
+        const scrollHeight = el.scrollHeight;
+        const offsetHeight = el.offsetHeight;
+        const isTop = scrollTop === 0;
+        const isBottom = scrollTop + offsetHeight >= scrollHeight;
+        const currentY = e.touches[0].pageY;
+        const isScrollingUp = currentY > startY;
+        const isScrollingDown = currentY < startY;
+        
+        // Prevent elastic scrolling at boundaries
+        if ((isTop && isScrollingUp) || (isBottom && isScrollingDown)) {
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+        }
+    }, { passive: false });
+    
+    console.log('✅ Mobile touch handlers initialized');
 }
 
 /**
