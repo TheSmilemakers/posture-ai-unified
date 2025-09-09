@@ -1236,9 +1236,15 @@
       if (!modal || !panel) return;
 
       let lastFocus = null;
+      let scrollPosition = 0;
       function openModal() {
         lastFocus = document.activeElement;
+        // Store scroll position before locking
+        scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
         document.body.classList.add('modal-open');
+        // Set scroll offset for CSS to use
+        document.body.style.setProperty('--scroll-offset', `-${scrollPosition}px`);
+        document.body.setAttribute('data-scroll-position', scrollPosition);
         modal.classList.add('is-open');
         modal.removeAttribute('hidden');
         panel.setAttribute('tabindex','-1');
@@ -1247,7 +1253,11 @@
       function closeModal() {
         modal.classList.remove('is-open');
         document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('--scroll-offset');
+        document.body.removeAttribute('data-scroll-position');
         panel.removeAttribute('tabindex');
+        // Restore scroll position
+        window.scrollTo(0, scrollPosition);
         if (lastFocus) lastFocus.focus();
         modal.setAttribute('hidden','');
       }

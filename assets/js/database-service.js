@@ -38,6 +38,13 @@ const getAuthHeaders = () => {
 // REMOVED: Cached headers that were causing security issues
 // Now calling getAuthHeaders() directly in each fetch request
 
+// Helper function to add API key as URL parameter for environments that don't support headers
+const withApiKeyParam = (url) => {
+    // Add API key as query parameter for better compatibility
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}apiKey=posture-api-2025`;
+};
+
 // CRITICAL FIX 1: Correct unit assignment mapping (same as ui-controller.js)
 // Replaces incorrect conditional logic that assigned "mm" to percentage measurements
 const MEASUREMENT_UNITS = {
@@ -63,7 +70,7 @@ const MEASUREMENT_UNITS = {
  */
 export async function createPatient(patientData) {
     try {
-        const response = await fetch(`${API_BASE}/patients/create`, {
+        const response = await fetch(withApiKeyParam(`${API_BASE}/patients/create`), {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
@@ -93,7 +100,7 @@ export async function createPatient(patientData) {
  */
 export async function createAssessment(patientId, assessmentType = 'clinical') {
     try {
-        const response = await fetch(`${API_BASE}/assessments/create`, {
+        const response = await fetch(withApiKeyParam(`${API_BASE}/assessments/create`), {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
@@ -225,7 +232,7 @@ export async function storeAnalysisResults(assessmentId, analysisData) {
             (analysisData.summary && analysisData.summary.overallScore) || 
             calculateOverallScore(measurements);
         
-        const response = await fetch(`${API_BASE}/assessments/analyze`, {
+        const response = await fetch(withApiKeyParam(`${API_BASE}/assessments/analyze`), {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
@@ -256,7 +263,7 @@ export async function testDatabaseConnection() {
     try {
         console.log('Testing database connection to:', `${API_BASE}/test-db`);
         
-        const response = await fetch(`${API_BASE}/test-db`, {
+        const response = await fetch(withApiKeyParam(`${API_BASE}/test-db`), {
             headers: getAuthHeaders()
         });
         
@@ -399,7 +406,7 @@ export async function uploadPhoto(assessmentId, viewType, imageData, annotation 
     try {
         console.log(`Uploading ${viewType} photo for assessment ${assessmentId}...`);
         
-        const response = await fetch(`${API_BASE}/photos/upload`, {
+        const response = await fetch(withApiKeyParam(`${API_BASE}/photos/upload`), {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
@@ -467,7 +474,7 @@ export async function saveExercisePrescription(assessmentId, prescriptionData, o
     try {
         console.log(`Saving exercise prescription for assessment ${assessmentId}...`);
         
-        const response = await fetch(`${API_BASE}/exercises/prescribe`, {
+        const response = await fetch(withApiKeyParam(`${API_BASE}/exercises/prescribe`), {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({

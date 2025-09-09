@@ -97,8 +97,7 @@ export function initializeUI() {
     // Add keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);
     
-    // Add touch event handling for mobile
-    initializeTouchHandlers();
+    // REMOVED initializeTouchHandlers() - was interfering with natural iOS scroll
     
     // Initialize auto-hide header
     initializeAutoHideHeader();
@@ -134,10 +133,12 @@ export function initializeUI() {
         
         // Alternative handler - click anywhere on button area
         disclaimerButton.addEventListener('touchend', (e) => {
-            e.preventDefault();
+            // Don't prevent default - let natural touch behavior occur
             console.log('📱 Disclaimer button touched, dismissing modal...');
             disclaimer.classList.add('hidden');
-        });
+            // Prevent the click event from also firing
+            e.stopPropagation();
+        }, { passive: true });
         
         // Fallback - auto-dismiss after 10 seconds if still visible
         setTimeout(() => {
@@ -2116,26 +2117,7 @@ function createSpinner() {
     return spinner;
 }
 
-/**
- * Initialize touch handlers for mobile
- */
-function initializeTouchHandlers() {
-    let touchStartY = 0;
-    
-    document.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    
-    document.addEventListener('touchmove', (e) => {
-        const touchY = e.touches[0].clientY;
-        const scrollTop = window.scrollY;
-        
-        // Prevent overscroll on iOS
-        if (scrollTop === 0 && touchY > touchStartY) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-}
+// REMOVED initializeTouchHandlers function - was preventing natural iOS bounce scrolling
 
 /**
  * Save current work
