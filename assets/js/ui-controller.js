@@ -118,48 +118,7 @@ export function initializeUI() {
     // Initialize form validation
     initializeFormValidation();
     
-    // Enhanced disclaimer handling with debugging and fallback
-    const disclaimer = document.querySelector('.clinical-disclaimer');
-    const disclaimerButton = document.querySelector('.clinical-disclaimer [data-close-modal]');
-    
-    if (disclaimer && disclaimerButton) {
-        console.log('✅ Disclaimer elements found, setting up handlers...');
-        
-        // Primary click handler
-        disclaimerButton.addEventListener('click', () => {
-            console.log('🚀 Disclaimer button clicked, dismissing modal...');
-            disclaimer.classList.add('hidden');
-            console.log('✅ Disclaimer dismissed successfully');
-        });
-        
-        // Alternative handler - click anywhere on button area
-        disclaimerButton.addEventListener('touchend', (e) => {
-            // Don't prevent default - let natural touch behavior occur
-            console.log('📱 Disclaimer button touched, dismissing modal...');
-            disclaimer.classList.add('hidden');
-            // Prevent the click event from also firing
-            e.stopPropagation();
-        }, { passive: true });
-        
-        // Fallback - auto-dismiss after 10 seconds if still visible
-        setTimeout(() => {
-            if (disclaimer && !disclaimer.classList.contains('hidden')) {
-                console.log('⏰ Auto-dismissing disclaimer after timeout...');
-                disclaimer.classList.add('hidden');
-            }
-        }, 10000);
-        
-        // Emergency fallback - Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && disclaimer && !disclaimer.classList.contains('hidden')) {
-                console.log('⌨️ Escape key pressed, dismissing disclaimer...');
-                disclaimer.classList.add('hidden');
-            }
-        });
-        
-    } else {
-        console.warn('❌ Disclaimer elements not found:', { disclaimer, disclaimerButton });
-    }
+    // Disclaimer modal is fully controlled in index.html script to avoid conflicts
     
     // Test database connection on startup
     testDatabaseOnStartup();
@@ -258,42 +217,9 @@ function initializeAutoHideHeader() {
  * Initialize mobile touch handlers
  */
 function initializeMobileTouchHandlers() {
-    // Prevent double-tap zoom on buttons
-    document.addEventListener('touchend', (e) => {
-        if (e.target.matches('button, .btn, .tab-btn')) {
-            e.preventDefault();
-            e.target.click(); // Trigger click programmatically
-        }
-    }, { passive: false });
-    
-    // Fix iOS scroll bounce at boundaries
-    let startY = 0;
-    document.addEventListener('touchstart', (e) => {
-        startY = e.touches[0].pageY;
-    }, { passive: true });
-    
-    document.addEventListener('touchmove', (e) => {
-        const el = document.querySelector('.app-container');
-        if (!el) return;
-        
-        const scrollTop = el.scrollTop;
-        const scrollHeight = el.scrollHeight;
-        const offsetHeight = el.offsetHeight;
-        const isTop = scrollTop === 0;
-        const isBottom = scrollTop + offsetHeight >= scrollHeight;
-        const currentY = e.touches[0].pageY;
-        const isScrollingUp = currentY > startY;
-        const isScrollingDown = currentY < startY;
-        
-        // Prevent elastic scrolling at boundaries
-        if ((isTop && isScrollingUp) || (isBottom && isScrollingDown)) {
-            if (e.cancelable) {
-                e.preventDefault();
-            }
-        }
-    }, { passive: false });
-    
-    console.log('✅ Mobile touch handlers initialized');
+    // Rely on CSS `touch-action: manipulation` for mobile responsiveness.
+    // Avoid JS-level prevention to preserve native behaviors (file inputs, labels, etc.).
+    console.log('✅ Mobile touch handlers initialized (CSS-based)');
 }
 
 /**
@@ -454,27 +380,31 @@ export function showTab(mode, tabName) {
             }
         }
         
-        // Hide all tabs
+        // Hide all tabs and mark as hidden for a11y
         document.querySelectorAll(`#${mode}-mode .tab-content`).forEach(tab => {
             tab.classList.remove('active');
+            tab.setAttribute('hidden', '');
         });
-        
-        // Remove active from all buttons
+
+        // Remove active from all buttons and update aria-selected
         document.querySelectorAll(`#${mode}-mode .tab-btn`).forEach(btn => {
             btn.classList.remove('active');
+            btn.setAttribute('aria-selected', 'false');
         });
-        
+
         // Show selected tab
         const targetTab = document.getElementById(`${mode}-${tabName}`);
         if (targetTab) {
             targetTab.classList.add('active');
+            targetTab.removeAttribute('hidden');
         }
-        
+
         // Activate button
         const activeBtn = Array.from(document.querySelectorAll(`#${mode}-mode .tab-btn`))
             .find(btn => btn.dataset.tab === tabName);
         if (activeBtn) {
             activeBtn.classList.add('active');
+            activeBtn.setAttribute('aria-selected', 'true');
         }
         
         // Update tab data when showing summary

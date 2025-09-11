@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -20,6 +20,8 @@
     <meta name="theme-color" content="#2A2A27" media="(prefers-color-scheme: dark)">
     <meta name="color-scheme" content="light dark">
     <meta name="description" content="AI-powered posture analysis with clinical-grade biomechanical assessment">
+    <link rel="apple-touch-icon" href="assets/img/icon-192.png">
+    <meta name="apple-mobile-web-app-title" content="Posture AI">
     
     <title>Posture AI - Advanced Biomechanical Analysis</title>
     
@@ -267,7 +269,7 @@
                     <p>Take or upload a photo for instant analysis</p>
                     
                     <div class="camera-container mt-lg">
-                        <video id="quick-camera" class="camera-view hidden" autoplay playsinline></video>
+                        <video id="quick-camera" class="camera-view hidden" autoplay playsinline muted></video>
                         <canvas id="quick-canvas" class="pose-canvas"></canvas>
                         <img id="quick-preview" class="uploaded-image hidden" alt="Uploaded posture image for quick analysis" />
                     </div>
@@ -356,20 +358,20 @@
             <!-- Clinical Assessment Mode -->
             <div id="clinical-mode" class="mode-content hidden">
                 <!-- Tab Navigation -->
-                <div class="tab-nav">
-                    <button class="tab-btn active" data-tab="client-info">Client Info</button>
-                    <button class="tab-btn" data-tab="assessment">Assessment</button>
-                    <button class="tab-btn" data-tab="north-star">North Star</button>
-                    <button class="tab-btn" data-tab="release">Release</button>
-                    <button class="tab-btn" data-tab="reset">Reset</button>
-                    <button class="tab-btn" data-tab="rebuild">Rebuild</button>
-                    <button class="tab-btn" data-tab="summary">Summary</button>
+                <div class="tab-nav" role="tablist" aria-label="Clinical Tabs">
+                    <button class="tab-btn active" data-tab="client-info" role="tab" id="tab-client-info" aria-controls="clinical-client-info" aria-selected="true">Client Info</button>
+                    <button class="tab-btn" data-tab="assessment" role="tab" id="tab-assessment" aria-controls="clinical-assessment" aria-selected="false">Assessment</button>
+                    <button class="tab-btn" data-tab="north-star" role="tab" id="tab-north-star" aria-controls="clinical-north-star" aria-selected="false">North Star</button>
+                    <button class="tab-btn" data-tab="release" role="tab" id="tab-release" aria-controls="clinical-release" aria-selected="false">Release</button>
+                    <button class="tab-btn" data-tab="reset" role="tab" id="tab-reset" aria-controls="clinical-reset" aria-selected="false">Reset</button>
+                    <button class="tab-btn" data-tab="rebuild" role="tab" id="tab-rebuild" aria-controls="clinical-rebuild" aria-selected="false">Rebuild</button>
+                    <button class="tab-btn" data-tab="summary" role="tab" id="tab-summary" aria-controls="clinical-summary" aria-selected="false">Summary</button>
                 </div>
 
                 <!-- Tab Contents -->
                 <div class="tab-contents">
                     <!-- Client Info Tab -->
-                    <div id="clinical-client-info" class="tab-content active">
+                    <div id="clinical-client-info" class="tab-content active" role="tabpanel" aria-labelledby="tab-client-info" tabindex="0">
                         <h2>Client Information</h2>
                         <form id="client-form">
                             <div class="form-group">
@@ -412,7 +414,7 @@
                     </div>
 
                     <!-- Assessment Tab -->
-                    <div id="clinical-assessment" class="tab-content">
+                    <div id="clinical-assessment" class="tab-content" role="tabpanel" aria-labelledby="tab-assessment" hidden>
                         <h2>Posture Assessment</h2>
                         <p>Upload photos and annotate findings for each view</p>
                         
@@ -545,7 +547,7 @@
                     </div>
 
                     <!-- North Star Tab - Posture Goals -->
-                    <div id="clinical-north-star" class="tab-content">
+                    <div id="clinical-north-star" class="tab-content" role="tabpanel" aria-labelledby="tab-north-star" hidden>
                         <h2>North Star Posture</h2>
                         <p>Define the ideal posture and movement goals for this client</p>
                         
@@ -594,7 +596,7 @@
                         </div>
                     </div>
 
-                    <div id="clinical-release" class="tab-content">
+                    <div id="clinical-release" class="tab-content" role="tabpanel" aria-labelledby="tab-release" hidden>
                         <h2>Release Movements</h2>
                         <p>Target tight and overactive muscles that need to be released</p>
                         
@@ -674,7 +676,7 @@
                         </div>
                     </div>
 
-                    <div id="clinical-reset" class="tab-content">
+                    <div id="clinical-reset" class="tab-content" role="tabpanel" aria-labelledby="tab-reset" hidden>
                         <h2>Reset Movements</h2>
                         <p>Activate and re-educate inhibited muscles to restore proper movement patterns</p>
                         
@@ -777,7 +779,7 @@
                         </div>
                     </div>
 
-                    <div id="clinical-rebuild" class="tab-content">
+                    <div id="clinical-rebuild" class="tab-content" role="tabpanel" aria-labelledby="tab-rebuild" hidden>
                         <h2>Rebuild Program</h2>
                         <p>Strengthen and build endurance in key postural muscles for long-term stability</p>
                         
@@ -901,7 +903,7 @@
                         </div>
                     </div>
 
-                    <div id="clinical-summary" class="tab-content">
+                    <div id="clinical-summary" class="tab-content" role="tabpanel" aria-labelledby="tab-summary" hidden>
                         <h2>Assessment Summary</h2>
                         <p>Review complete assessment and generate clinical report</p>
                         

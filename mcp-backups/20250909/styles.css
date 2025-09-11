@@ -183,8 +183,9 @@ html[data-theme="dark"]{ color-scheme:dark !important; }
 html{
   /* Fixed: Stable viewport height */
   height: 100%;
-  overflow: visible; /* Let body handle scrolling */
-  position: relative; /* Keep relative, not fixed */
+  position: relative;
+  /* Prevent browser pull-to-refresh globally */
+  /* REMOVED overscroll-behavior: none - conflicts with body rule */
 }
 
 body{
@@ -194,13 +195,9 @@ body{
   color:var(--color-text-primary);
   /* Fixed: Let body be naturally scrollable */
   min-height: 100vh;
-  /* Use dynamic viewport on modern mobile to avoid 100vh bugs */
-  min-height: 100dvh;
   margin:0;
   text-align:center;
-  position: relative; /* NOT fixed - this is critical */
-  overflow-x: hidden; /* Prevent horizontal scroll */
-  overscroll-behavior: none; /* Single rule, no duplicates */
+  position:relative;
   width:100%;
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
@@ -228,7 +225,6 @@ a:hover{opacity:.8}
   position:relative;
   width:100%;
   min-height:100vh;
-  min-height:100dvh;
   transition:var(--transition-theme);
 }
 
@@ -342,14 +338,6 @@ html[data-theme="dark"] .app-header{background:rgba(42,42,39,.5)}
 .tab-btn{flex-shrink:0;padding:var(--spacing-sm) var(--spacing-lg);background:#fff;border:none;border-radius:var(--border-radius);cursor:pointer;font-weight:600;color:var(--color-text-secondary);transition:var(--transition-base);white-space:nowrap}
 .tab-btn:hover{background:var(--light-bg)}
 .tab-btn.active{background:var(--primary-color);color:#fff}
-
-/* Lightweight nav bar used within modes */
-.nav-bar{display:flex;align-items:center;justify-content:space-between;padding:var(--spacing-sm) var(--spacing-md);background:var(--light-bg);border-bottom:1px solid var(--color-border-light);position:sticky;top:var(--header-h);z-index:var(--z-nav)}
-.nav-back{display:flex;align-items:center;gap:.5rem;background:transparent;border:0;color:var(--color-text-primary);cursor:pointer}
-.nav-title{font-weight:600;color:var(--color-text-primary)}
-@media (max-width:768px){
-  .nav-bar{position:static;top:auto}
-}
 
 /* Accessible tabs utility */
 .tabs{display:flex;gap:.5rem;overflow:auto;padding:.25rem .5rem;border-bottom:1px solid var(--color-border-light);background:var(--light-bg)}
@@ -566,78 +554,96 @@ body.modal-open[data-scroll-position] {
 
 /* ========== MOBILE-SPECIFIC FIXES ========== */
 @media (max-width:768px){
+  /* Fixed: Unified mobile scrolling approach */
   html {
+    /* Stable height for mobile viewport */
     height: 100%;
-    overflow: visible !important;
+    /* Let body handle scrolling, not html */
+    /* REMOVED overflow: hidden - was blocking mobile scroll */
+    /* Prevent pull-to-refresh on PWA */
+    /* REMOVED overscroll-behavior-y: contain - duplicate rule */
   }
   
   body {
-    /* FIXED: Proper mobile scrolling container */
-    min-height: 100vh;
-    min-height: -webkit-fill-available; /* iOS safe area */
+    /* Mobile-optimized scrolling setup */
+    height: 100vh;
+    height: -webkit-fill-available;
+    height: 100dvh;
+    /* Only body scrolls vertically */
     overflow-x: hidden;
     overflow-y: auto;
+    /* Smooth momentum scrolling on iOS */
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain; /* Prevent pull-to-refresh */
-    position: relative !important; /* Not fixed! Critical for iOS */
-    width: 100%;
+    /* Prevent horizontal scroll from wide content */
+    max-width: 100vw;
+    /* REMOVED will-change: scroll-position - causes performance issues */
+    /* Remove smooth scroll on mobile - handled globally with preference */
+    /* Single overscroll-behavior rule for entire app */
+    overscroll-behavior: auto contain;
   }
   
   .app-container {
-    /* FIXED: Natural document flow */
-    position: relative !important;
-    width: 100%;
+    /* Container follows body scroll */
+    overflow: visible !important;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    overflow: visible !important; /* Let content flow naturally */
+    /* No transforms for better performance */
+    transform: none !important;
+    -webkit-transform: none !important;
+    /* Contain layout for performance */
+    contain: layout style;
     /* Add safe area padding for notched devices */
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom, 20px);
   }
-  /* Disable heavy fixed background on mobile for perf */
-  .app-container::before{display:none !important}
   
-  /* FIXED: Remove problematic sticky header */
+  /* Fixed: Sticky header on mobile for better scrolling */
   .app-header {
-    position: relative !important; /* Not sticky - causes iOS issues */
-    top: auto !important;
-    z-index: var(--z-header);
-    transition: none !important; /* Remove animations on mobile */
+    /* Override desktop fixed positioning */
+    position: sticky !important;
+    position: -webkit-sticky !important;
+    /* Stick to top */
+    top: 0;
     height:56px;
     padding-block:8px;
     padding-inline:12px;
+    /* Remove transform transition on mobile to prevent scroll issues */
+    transition: opacity .3s cubic-bezier(.4,0,.2,1) !important;
   }
   
-  /* Content padding adjustments */
+  /* Hide header with opacity instead of transform on mobile */
+  .app-header.header-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  
+  /* Adjust content for sticky header */
   .mode-selection,
   .patient-selection,
   .main-content {
-    padding-top: var(--spacing-md);
+    padding-top: var(--spacing-md); /* Reduced since header is sticky */
+    /* Add safe area padding */
     padding-bottom: env(safe-area-inset-bottom, 20px);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
   
-  /* FIXED: Remove heavy effects on mobile */
+  /* Optimize background image for mobile performance */
+  .app-container::before {
+    display: block !important;        /* keep BG visible */
+    opacity: .22;                     /* slightly lighter for readability */
+    background-attachment: scroll;    /* avoids jank on iOS */
+    will-change: opacity;             /* cheaper than transform */
+  }
+  
+  /* Reduce backdrop filters for performance */
   .mode-card,
   .photo-card,
   .upload-area,
   .info-card {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    background: var(--color-bg-secondary) !important;
-  }
-  
-  /* FIXED: Prevent font size zoom on input focus */
-  input, select, textarea {
-    font-size: 16px !important; /* Prevents iOS zoom */
-  }
-  
-  /* Form inputs and buttons - better touch targets */
-  .btn, .tab-btn, .form-input, .form-select {
-    min-height: 44px; /* iOS touch target recommendation */
-    touch-action: manipulation; /* Prevents double-tap zoom */
   }
   
   /* Mobile-specific adjustments */
@@ -766,12 +772,6 @@ body.modal-open[data-scroll-position] {
   .app-container::before{display:none}
   .mode-card,.photo-card,.info-card,.score-card{background:#fff !important;border:1px solid #000 !important;box-shadow:none !important}
 }
-
-/* ========== INLINE ERROR MODAL (JS-injected) ========== */
-.error-modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:grid;place-items:center;z-index:var(--z-modal)}
-.error-content{background:var(--color-bg-tertiary);color:var(--color-text-primary);padding:var(--spacing-lg);border-radius:var(--border-radius-lg);box-shadow:var(--shadow-xl);width:min(560px,92vw)}
-.error-content h3{display:flex;align-items:center;gap:.5rem;margin-bottom:var(--spacing-md)}
-.error-icon{flex-shrink:0}
 
 /* ========== UPLOADED IMAGES ========== */
 .uploaded-image {

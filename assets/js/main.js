@@ -327,20 +327,33 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Register service worker for PWA support (if available)
     if ('serviceWorker' in navigator) {
-        // Check for updates and force refresh if needed
         navigator.serviceWorker.ready.then(registration => {
             registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'activated') {
-                        console.log('New service worker activated, reloading page...');
-                        // Force reload to get fresh code
-                        window.location.reload(true);
+                    // Offer a user-driven refresh rather than forcing a reload
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // Create a lightweight banner
+                        const banner = document.createElement('div');
+                        banner.style.cssText = `
+                            position: fixed; left: 0; right: 0; bottom: 12px; margin: 0 auto; width: fit-content;
+                            background: var(--color-bg-secondary); color: var(--color-text-primary);
+                            padding: 8px 14px; border: 1px solid var(--color-border-light); border-radius: 999px;
+                            box-shadow: var(--shadow-md); z-index: 1101; font-weight: 600; display: flex; gap: 10px; align-items: center;
+                        `;
+                        banner.textContent = 'Update available';
+                        const btn = document.createElement('button');
+                        btn.textContent = 'Refresh';
+                        btn.style.cssText = 'margin-left:6px; background: var(--accent); color: #fff; border:0; padding:4px 10px; border-radius:999px; cursor:pointer;';
+                        btn.addEventListener('click', () => window.location.reload());
+                        banner.appendChild(btn);
+                        document.body.appendChild(banner);
+                        setTimeout(() => banner.remove(), 8000);
                     }
                 });
             });
         });
-        
+
         navigator.serviceWorker.register('sw.js').catch(err => {
             console.log('Service worker registration failed:', err);
         });
