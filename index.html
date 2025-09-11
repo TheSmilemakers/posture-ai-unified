@@ -94,7 +94,7 @@
 <body>
     <div class="app-container">
         <!-- Clinical Testing Disclaimer -->
-        <div class="clinical-disclaimer modal is-open" role="dialog" aria-modal="true" aria-labelledby="disc-title">
+        <div class="clinical-disclaimer modal" role="dialog" aria-modal="true" aria-labelledby="disc-title" hidden>
             <div class="disclaimer-content modal__panel">
                 <h3 id="disc-title">⚠️ CLINICAL TESTING VERSION - IMPORTANT NOTICE</h3>
                 <p><strong>This is a testing version for clinical evaluation purposes only.</strong></p>
@@ -1235,11 +1235,21 @@
       const modal = document.querySelector('.clinical-disclaimer');
       const panel = modal?.querySelector('.modal__panel');
       const closeBtns = modal?.querySelectorAll('[data-close-modal]');
-      if (!modal || !panel) return;
+      
+      // Debug logging
+      console.log('Clinical disclaimer modal:', modal);
+      console.log('Close buttons found:', closeBtns?.length || 0);
+      
+      if (!modal || !panel) {
+        console.error('Modal or panel not found');
+        return;
+      }
 
       let lastFocus = null;
       let scrollPosition = 0;
+      
       function openModal() {
+        console.log('Opening clinical disclaimer modal');
         lastFocus = document.activeElement;
         // Store scroll position before locking
         scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
@@ -1252,23 +1262,59 @@
         panel.setAttribute('tabindex','-1');
         panel.focus();
       }
+      
       function closeModal() {
+        console.log('Closing clinical disclaimer modal');
         modal.classList.remove('is-open');
+        // Ensure body cleanup
         document.body.classList.remove('modal-open');
         document.body.style.removeProperty('--scroll-offset');
         document.body.removeAttribute('data-scroll-position');
+        // Remove any inline styles that might have been added
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('touch-action');
+        document.body.style.removeProperty('position');
+        document.body.style.removeProperty('top');
+        
         panel.removeAttribute('tabindex');
         // Restore scroll position
         window.scrollTo(0, scrollPosition);
         if (lastFocus) lastFocus.focus();
         modal.setAttribute('hidden','');
+        
+        // Final verification
+        console.log('Modal closed. Body classes:', document.body.className);
+        console.log('Modal hidden:', modal.hasAttribute('hidden'));
       }
 
-      // open on first load
+      // Open on first load
       openModal();
-      closeBtns.forEach(b => b.addEventListener('click', closeModal));
-      modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-      document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal(); });
+      
+      // Add event listeners with debugging
+      closeBtns.forEach(btn => {
+        console.log('Adding click listener to close button:', btn);
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeModal();
+        });
+      });
+      
+      // Close on background click
+      modal.addEventListener('click', e => { 
+        if (e.target === modal) {
+          console.log('Background clicked, closing modal');
+          closeModal();
+        }
+      });
+      
+      // Close on Escape key
+      document.addEventListener('keydown', e => { 
+        if (e.key === 'Escape' && modal.classList.contains('is-open')) {
+          console.log('Escape key pressed, closing modal');
+          closeModal();
+        }
+      });
     }());
     </script>
 </body>

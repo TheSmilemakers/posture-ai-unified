@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Clinical Modal Fix</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            max-width: 800px; 
+            margin: 0 auto;
+            min-height: 200vh; /* To test scrolling */
+            background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
+        }
+        .test-section { 
+            background: white; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status { 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .warning { background: #fff3cd; color: #856404; }
+        .error { background: #f8d7da; color: #721c24; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        pre { 
+            background: #f4f4f4; 
+            padding: 10px; 
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .scroll-test {
+            height: 100px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .inner-content {
+            height: 300px;
+            background: linear-gradient(to bottom, #e0e0e0, #d0d0d0);
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Clinical Modal Fix Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Instructions</h2>
+        <ol>
+            <li>Open this page in a browser</li>
+            <li>Check that you see a password prompt first</li>
+            <li>Enter password: <code>posture2025</code></li>
+            <li>Then you should see the clinical disclaimer modal</li>
+            <li>Click "I Understand" button to close the modal</li>
+            <li>Verify that the page is scrollable after modal closes</li>
+            <li>Check the console for debug messages</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>Modal State Checks</h2>
+        <button onclick="checkModalState()">Check Current State</button>
+        <button onclick="openModalManually()">Open Modal Manually</button>
+        <button onclick="closeModalManually()">Close Modal Manually</button>
+        <div id="state-output"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Scroll Test Area</h2>
+        <p>This area tests if scrolling works after modal is closed:</p>
+        <div class="scroll-test">
+            <div class="inner-content">
+                <p>Scroll down to see more content...</p>
+                <p>Line 1</p>
+                <p>Line 2</p>
+                <p>Line 3</p>
+                <p>Line 4</p>
+                <p>Line 5</p>
+                <p>Line 6</p>
+                <p>Line 7</p>
+                <p>Line 8</p>
+                <p>Line 9</p>
+                <p>Line 10</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Console Output</h2>
+        <pre id="console-output">Console messages will appear here...</pre>
+    </div>
+
+    <div class="test-section" style="margin-top: 100vh;">
+        <h2>Bottom Section</h2>
+        <p>If you can scroll to see this, then the modal close worked correctly!</p>
+        <div class="status success">✅ Scrolling is working!</div>
+    </div>
+
+    <script>
+        // Capture console logs
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const logs = [];
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.join(' ');
+            logs.push('[LOG] ' + message);
+            updateConsoleDisplay();
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            const message = args.join(' ');
+            logs.push('[ERROR] ' + message);
+            updateConsoleDisplay();
+        };
+        
+        function updateConsoleDisplay() {
+            consoleOutput.textContent = logs.slice(-10).join('\n');
+        }
+        
+        function checkModalState() {
+            const modal = parent.document.querySelector('.clinical-disclaimer');
+            const body = parent.document.body;
+            const output = document.getElementById('state-output');
+            
+            const state = {
+                modalExists: !!modal,
+                modalHidden: modal?.hasAttribute('hidden'),
+                modalHasIsOpen: modal?.classList.contains('is-open'),
+                bodyHasModalOpen: body.classList.contains('modal-open'),
+                bodyStyles: {
+                    overflow: body.style.overflow,
+                    touchAction: body.style.touchAction,
+                    position: body.style.position,
+                    top: body.style.top
+                },
+                bodyClasses: body.className,
+                canScroll: !body.classList.contains('modal-open') && !body.style.overflow
+            };
+            
+            output.innerHTML = `
+                <div class="status ${state.canScroll ? 'success' : 'error'}">
+                    Can Scroll: ${state.canScroll ? '✅ Yes' : '❌ No'}
+                </div>
+                <pre>${JSON.stringify(state, null, 2)}</pre>
+            `;
+        }
+        
+        function openModalManually() {
+            console.log('Opening modal manually from test page...');
+            // Try to trigger the parent window's modal
+            if (parent !== window) {
+                const modal = parent.document.querySelector('.clinical-disclaimer');
+                if (modal) {
+                    modal.classList.add('is-open');
+                    modal.removeAttribute('hidden');
+                    parent.document.body.classList.add('modal-open');
+                }
+            }
+            setTimeout(checkModalState, 100);
+        }
+        
+        function closeModalManually() {
+            console.log('Closing modal manually from test page...');
+            if (parent !== window) {
+                const modal = parent.document.querySelector('.clinical-disclaimer');
+                if (modal) {
+                    modal.classList.remove('is-open');
+                    modal.setAttribute('hidden', '');
+                    parent.document.body.classList.remove('modal-open');
+                    parent.document.body.style.removeProperty('overflow');
+                    parent.document.body.style.removeProperty('touch-action');
+                }
+            }
+            setTimeout(checkModalState, 100);
+        }
+        
+        // Check state on load
+        window.addEventListener('load', () => {
+            console.log('Test page loaded');
+            setTimeout(checkModalState, 1000);
+        });
+        
+        // Test if page is in iframe
+        if (window !== parent) {
+            console.log('Page is in iframe, attempting to access parent modal...');
+        } else {
+            console.log('Page is not in iframe, loading standalone');
+        }
+    </script>
+</body>
+</html>
