@@ -22,18 +22,5 @@
     }
   ],
   "categories": ["health", "medical", "fitness"],
-  "screenshots": [
-    {
-      "src": "/assets/img/screenshot-1.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "label": "Mode Selection Screen"
-    },
-    {
-      "src": "/assets/img/screenshot-2.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "label": "Posture Analysis Results"
-    }
-  ]
+  "screenshots": []
 }

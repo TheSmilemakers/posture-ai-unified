@@ -1,0 +1,166 @@
+{
+	"folders": [
+		{
+			"name": "Posture AI Unified",
+			"path": "."
+		}
+	],
+	"settings": {
+		"editor.tabSize": 4,
+		"editor.insertSpaces": true,
+		"editor.detectIndentation": true,
+		"editor.formatOnSave": true,
+		"editor.wordWrap": "on",
+		"editor.rulers": [80, 120],
+		"files.trimTrailingWhitespace": true,
+		"files.insertFinalNewline": true,
+		"files.exclude": {
+			"**/node_modules": true,
+			"**/.DS_Store": true,
+			"**/npm-debug.log*": true,
+			"**/yarn-debug.log*": true,
+			"**/yarn-error.log*": true,
+			"**/.env.local": true,
+			"**/.vercel": true
+		},
+		"search.exclude": {
+			"**/node_modules": true,
+			"**/.vercel": true,
+			"**/dist": true,
+			"**/build": true
+		},
+		"emmet.includeLanguages": {
+			"javascript": "javascriptreact"
+		},
+		"javascript.preferences.quoteStyle": "single",
+		"typescript.preferences.quoteStyle": "single",
+		"css.validate": true,
+		"html.validate.scripts": true,
+		"html.validate.styles": true
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-vscode.vscode-typescript-next",
+			"bradlc.vscode-tailwindcss",
+			"esbenp.prettier-vscode",
+			"ms-vscode.live-server",
+			"ritwickdey.liveserver",
+			"ms-vscode.vscode-json",
+			"formulahendry.auto-rename-tag",
+			"christian-kohler.path-intellisense",
+			"ms-vscode.vscode-css-peek"
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "Start Local Server",
+				"type": "shell",
+				"command": "python3",
+				"args": ["-m", "http.server", "3000"],
+				"group": "build",
+				"presentation": {
+					"echo": true,
+					"reveal": "always",
+					"focus": false,
+					"panel": "shared"
+				},
+				"problemMatcher": [],
+				"detail": "Start Python HTTP server on port 3000"
+			},
+			{
+				"label": "Test Database Connection",
+				"type": "shell",
+				"command": "npm",
+				"args": ["run", "test:db"],
+				"group": "test",
+				"presentation": {
+					"echo": true,
+					"reveal": "always",
+					"focus": false,
+					"panel": "shared"
+				},
+				"problemMatcher": [],
+				"detail": "Test Supabase database connection"
+			},
+			{
+				"label": "Deploy to Vercel",
+				"type": "shell",
+				"command": "vercel",
+				"args": ["--prod"],
+				"group": "build",
+				"presentation": {
+					"echo": true,
+					"reveal": "always",
+					"focus": true,
+					"panel": "shared"
+				},
+				"problemMatcher": [],
+				"detail": "Deploy to production on Vercel"
+			},
+			{
+				"label": "Open Production Site",
+				"type": "shell",
+				"command": "open",
+				"args": ["https://posture.rajanmaher.com"],
+				"group": "build",
+				"presentation": {
+					"echo": true,
+					"reveal": "silent",
+					"focus": false,
+					"panel": "shared"
+				},
+				"problemMatcher": [],
+				"detail": "Open production website in browser"
+			},
+			{
+				"label": "Install Dependencies",
+				"type": "shell",
+				"command": "npm",
+				"args": ["install"],
+				"group": "build",
+				"presentation": {
+					"echo": true,
+					"reveal": "always",
+					"focus": false,
+					"panel": "shared"
+				},
+				"problemMatcher": [],
+				"detail": "Install project dependencies"
+			}
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Launch Chrome",
+				"type": "chrome",
+				"request": "launch",
+				"url": "http://localhost:3000",
+				"webRoot": "${workspaceFolder}",
+				"preLaunchTask": "Start Local Server"
+			},
+			{
+				"name": "Debug JavaScript",
+				"type": "node",
+				"request": "launch",
+				"program": "${file}",
+				"console": "integratedTerminal",
+				"skipFiles": [
+					"<node_internals>/**"
+				]
+			}
+		]
+	},
+	"compounds": [
+		{
+			"name": "Launch Full Development",
+			"configurations": [
+				"Launch Chrome"
+			],
+			"preLaunchTask": "Start Local Server"
+		}
+	]
+}

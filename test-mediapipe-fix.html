@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPipe Initialization Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f3ce;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #5a67d8; }
+        button:disabled { background: #cbd5e0; cursor: not-allowed; }
+        pre {
+            background: #f7fafc;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        #console-log {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>MediaPipe Initialization Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <button id="test-initialization">Test MediaPipe Initialization</button>
+        <button id="test-quick-mode">Test Quick Mode Analysis</button>
+        <button id="test-multiple-init">Test Multiple Initializations</button>
+        <button id="clear-log">Clear Log</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Status</h2>
+        <div id="status-container"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Console Output</h2>
+        <div id="console-log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Image</h2>
+        <canvas id="test-canvas" width="640" height="480" style="border: 1px solid #ccc;"></canvas>
+    </div>
+    
+    <!-- MediaPipe Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/pose.js" crossorigin="anonymous"></script>
+    
+    <script type="module">
+        import { initializePose } from './assets/js/mediapipe-init.js';
+        
+        // Override console.log to capture output
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        const logContainer = document.getElementById('console-log');
+        
+        function addLog(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ef4444' : type === 'warn' ? '#f59e0b' : '#10b981';
+            logContainer.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        console.log = (...args) => {
+            originalLog(...args);
+            addLog(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' '));
+        };
+        
+        console.error = (...args) => {
+            originalError(...args);
+            addLog(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' '), 'error');
+        };
+        
+        console.warn = (...args) => {
+            originalWarn(...args);
+            addLog(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' '), 'warn');
+        };
+        
+        // Status helper
+        function addStatus(message, type = 'info') {
+            const statusContainer = document.getElementById('status-container');
+            const status = document.createElement('div');
+            status.className = `status ${type}`;
+            status.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            statusContainer.appendChild(status);
+        }
+        
+        // Create test image
+        function createTestImage() {
+            const canvas = document.getElementById('test-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Draw a simple stick figure
+            ctx.fillStyle = '#f8f3ce';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            
+            // Head
+            ctx.beginPath();
+            ctx.arc(320, 100, 30, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Body
+            ctx.beginPath();
+            ctx.moveTo(320, 130);
+            ctx.lineTo(320, 250);
+            ctx.stroke();
+            
+            // Arms
+            ctx.beginPath();
+            ctx.moveTo(320, 170);
+            ctx.lineTo(270, 220);
+            ctx.moveTo(320, 170);
+            ctx.lineTo(370, 220);
+            ctx.stroke();
+            
+            // Legs
+            ctx.beginPath();
+            ctx.moveTo(320, 250);
+            ctx.lineTo(290, 350);
+            ctx.moveTo(320, 250);
+            ctx.lineTo(350, 350);
+            ctx.stroke();
+            
+            return canvas;
+        }
+        
+        // Test initialization
+        document.getElementById('test-initialization').addEventListener('click', async () => {
+            addStatus('Starting MediaPipe initialization test...', 'info');
+            
+            try {
+                const startTime = performance.now();
+                const pose = await initializePose('quick');
+                const endTime = performance.now();
+                
+                addStatus(`✅ MediaPipe initialized successfully in ${(endTime - startTime).toFixed(2)}ms`, 'success');
+                
+                // Check methods
+                addStatus(`Has send method: ${typeof pose.send === 'function'}`, 'info');
+                addStatus(`Has onResults method: ${typeof pose.onResults === 'function'}`, 'info');
+                addStatus(`Has setOptions method: ${typeof pose.setOptions === 'function'}`, 'info');
+                addStatus(`Is initialized flag: ${pose._isInitialized}`, 'info');
+                
+            } catch (error) {
+                addStatus(`❌ Initialization failed: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test quick mode analysis
+        document.getElementById('test-quick-mode').addEventListener('click', async () => {
+            addStatus('Starting quick mode analysis test...', 'info');
+            
+            try {
+                const pose = await initializePose('quick');
+                addStatus('✅ Pose initialized', 'success');
+                
+                // Set up results handler
+                const resultsPromise = new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Analysis timeout'));
+                    }, 10000);
+                    
+                    pose.onResults((results) => {
+                        clearTimeout(timeout);
+                        resolve(results);
+                    });
+                });
+                
+                // Send test image
+                const canvas = createTestImage();
+                addStatus('Sending test image to MediaPipe...', 'info');
+                await pose.send({ image: canvas });
+                
+                // Wait for results
+                const results = await resultsPromise;
+                addStatus(`✅ Analysis complete! Detected ${results.poseLandmarks ? results.poseLandmarks.length : 0} landmarks`, 'success');
+                
+            } catch (error) {
+                addStatus(`❌ Analysis failed: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test multiple initializations
+        document.getElementById('test-multiple-init').addEventListener('click', async () => {
+            addStatus('Testing multiple initializations...', 'info');
+            
+            for (let i = 0; i < 3; i++) {
+                try {
+                    addStatus(`Initialization attempt ${i + 1}...`, 'info');
+                    const pose = await initializePose('quick');
+                    addStatus(`✅ Attempt ${i + 1} successful`, 'success');
+                } catch (error) {
+                    addStatus(`❌ Attempt ${i + 1} failed: ${error.message}`, 'error');
+                }
+                
+                // Wait between attempts
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        });
+        
+        // Clear log
+        document.getElementById('clear-log').addEventListener('click', () => {
+            logContainer.innerHTML = '';
+            document.getElementById('status-container').innerHTML = '';
+            addStatus('Log cleared', 'info');
+        });
+        
+        // Initialize test image
+        createTestImage();
+        addStatus('Test page ready', 'success');
+    </script>
+</body>
+</html>

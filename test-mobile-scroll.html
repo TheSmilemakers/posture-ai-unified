@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Mobile Scroll Test - Posture AI</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <style>
+        /* Test-specific styles */
+        .test-content {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 40px 0;
+            padding: 20px;
+            background: var(--color-bg-secondary);
+            border-radius: 10px;
+        }
+        .long-content {
+            height: 150vh;
+            background: linear-gradient(to bottom, #f0f0f0, #333);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+        .modal-test-btn {
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .test-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            place-items: center;
+        }
+        .test-modal.open {
+            display: grid;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .debug-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 4C16 4 12 8 12 16C12 24 16 28 16 28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M16 4C16 4 20 8 20 16C20 24 16 28 16 28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="16" cy="12" r="2" fill="currentColor"/>
+                    <circle cx="16" cy="20" r="2" fill="currentColor"/>
+                </svg>
+                <span>Mobile Scroll Test</span>
+            </div>
+        </header>
+
+        <main class="test-content">
+            <h1>Mobile Scroll Behavior Test</h1>
+            
+            <div class="test-section">
+                <h2>Scroll Features to Test:</h2>
+                <ul>
+                    <li>✓ Smooth scrolling with preference respect</li>
+                    <li>✓ No horizontal scroll overflow</li>
+                    <li>✓ Proper iOS bounce prevention</li>
+                    <li>✓ Modal scroll locking</li>
+                    <li>✓ Header auto-hide on scroll</li>
+                    <li>✓ 100dvh viewport handling</li>
+                </ul>
+            </div>
+
+            <div class="test-section">
+                <h2>Test Modal Behavior</h2>
+                <button class="btn btn--primary modal-test-btn" onclick="openTestModal()">
+                    Open Test Modal
+                </button>
+            </div>
+
+            <div class="test-section long-content">
+                <div>Scroll to test viewport behavior</div>
+            </div>
+
+            <div class="test-section">
+                <h2>Touch & Scroll Tests</h2>
+                <p>Try the following on mobile:</p>
+                <ol>
+                    <li>Scroll up and down - should be smooth</li>
+                    <li>Try to pull-to-refresh - should be blocked</li>
+                    <li>Open modal - background should not scroll</li>
+                    <li>Check no horizontal scroll on narrow screens</li>
+                    <li>Test iOS Safari and Chrome on Android</li>
+                </ol>
+            </div>
+        </main>
+    </div>
+
+    <!-- Test Modal -->
+    <div class="test-modal" id="testModal">
+        <div class="modal-content">
+            <h2>Modal Scroll Test</h2>
+            <p>The background should be locked while this modal is open.</p>
+            <div style="height: 200vh; background: linear-gradient(white, #f0f0f0);">
+                <p>Long modal content to test internal scrolling...</p>
+                <p style="position: absolute; bottom: 20px;">Bottom of modal content</p>
+            </div>
+            <button class="btn btn--primary" onclick="closeTestModal()">Close Modal</button>
+        </div>
+    </div>
+
+    <!-- Debug Info -->
+    <div class="debug-info" id="debugInfo">
+        <div>Viewport: <span id="viewportSize">-</span></div>
+        <div>Scroll: <span id="scrollPos">-</span></div>
+        <div>Body Height: <span id="bodyHeight">-</span></div>
+    </div>
+
+    <script>
+        // Modal test functions
+        function openTestModal() {
+            document.getElementById('testModal').classList.add('open');
+            document.body.classList.add('modal-open');
+            // Store scroll position
+            document.body.style.setProperty('--scroll-offset', `-${window.scrollY}px`);
+            document.body.setAttribute('data-scroll-position', window.scrollY);
+        }
+
+        function closeTestModal() {
+            document.getElementById('testModal').classList.remove('open');
+            document.body.classList.remove('modal-open');
+            // Restore scroll position
+            const scrollPos = document.body.getAttribute('data-scroll-position');
+            if (scrollPos) {
+                window.scrollTo(0, parseInt(scrollPos));
+                document.body.removeAttribute('data-scroll-position');
+                document.body.style.removeProperty('--scroll-offset');
+            }
+        }
+
+        // Debug info update
+        function updateDebugInfo() {
+            document.getElementById('viewportSize').textContent = `${window.innerWidth}x${window.innerHeight}`;
+            document.getElementById('scrollPos').textContent = `${window.scrollX}, ${window.scrollY}`;
+            document.getElementById('bodyHeight').textContent = `${document.body.scrollHeight}px`;
+        }
+
+        // Update on scroll and resize
+        window.addEventListener('scroll', updateDebugInfo, { passive: true });
+        window.addEventListener('resize', updateDebugInfo);
+        updateDebugInfo();
+
+        // Test for iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        if (isIOS) {
+            console.log('iOS device detected - testing iOS-specific optimizations');
+        }
+    </script>
+</body>
+</html>

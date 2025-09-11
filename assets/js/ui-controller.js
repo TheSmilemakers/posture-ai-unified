@@ -3,7 +3,8 @@
  * Manages user interface state and interactions
  */
 
-import { initializePose, drawConnectors, drawLandmarks, POSE_CONNECTIONS } from './mediapipe-init.js';
+import { initializePose, drawConnectors, drawLandmarks, POSE_CONNECTIONS, EnhancedPoseDetector, LANDMARKS } from './mediapipe-init.js';
+import { sanitizer } from './sanitizer.js';
 import { 
     calculateBasicMetrics, 
     analyzeFrontView, 
@@ -13,20 +14,44 @@ import {
     generateExerciseRecommendations,
     getSeverity 
 } from './analysis.js';
-import { formatNumber, downloadJSON, generatePDF } from './utils.js';
+import { formatNumber, downloadJSON, generatePDF, calibrateToRealWorld, calibrateToRealWorldEnhanced, convertToBodyPercentage, getPatientHeight, getImageMetadata, validateCalibrationData, calculateLandmarkCalibration, calculateMeasurementConfidence, getCalibrationStatus } from './utils.js';
 import { 
     createPatient,
     createAssessment,
     storeAnalysisResults,
     saveCompleteAssessment,
-    testDatabaseConnection
+    testDatabaseConnection,
+    uploadPhoto,
+    uploadAssessmentPhotos,
+    saveExercisePrescription
 } from './database-service.js';
+
+// CRITICAL FIX 1: Correct unit assignment mapping
+// Replaces incorrect conditional logic that assigned "mm" to percentage measurements
+const MEASUREMENT_UNITS = {
+    // Angles - correctly assigned
+    'qAngle': 'degrees',
+    'pelvicAngle': 'degrees', 
+    'kyphosisAngle': 'degrees',
+    
+    // FIXED: Asymmetries should be in real-world units (cm)
+    'shoulderAsymmetry': 'cm',          // Real measurement
+    'hipAsymmetry': 'cm',               // Real measurement
+    'forwardHead': 'cm',                // Real measurement
+    'spinalDeviation': 'cm',            // Real measurement
+    'scapularAsymmetry': 'cm',          // Real measurement
+    
+    // Weight distribution - correctly assigned
+    'weightDistributionLeft': 'percent',
+    'weightDistributionRight': 'percent'
+};
 
 // Global UI State
 export const UIState = {
     currentMode: null,
     currentTab: null,
     pose: null,
+    enhancedDetector: null,
     currentStream: null,
     analysisData: {
         quick: {},
@@ -38,7 +63,10 @@ export const UIState = {
         advanced: {
             front: null,
             side: null,
-            back: null
+            back: null,
+            images: {},      // Store uploaded image data with metadata
+            landmarks: {},   // Store MediaPipe pose landmarks for each view
+            patterns: []     // Store detected postural patterns
         }
     },
     uploadedViews: {
@@ -69,8 +97,8 @@ export function initializeUI() {
     // Add keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);
     
-    // Add touch event handling for mobile
-    initializeTouchHandlers();
+    // FIXED: Add proper touch handlers for mobile
+    initializeMobileTouchHandlers();
     
     // Initialize auto-hide header
     initializeAutoHideHeader();
@@ -84,46 +112,13 @@ export function initializeUI() {
     document.addEventListener('click', handleGlobalClick);
     document.addEventListener('change', handleGlobalChange);
     
-    // Enhanced disclaimer handling with debugging and fallback
-    const disclaimer = document.querySelector('.clinical-disclaimer');
-    const disclaimerButton = document.querySelector('.clinical-disclaimer .btn-warning');
+    // Initialize drag and drop for upload areas
+    initializeDragAndDrop();
     
-    if (disclaimer && disclaimerButton) {
-        console.log('✅ Disclaimer elements found, setting up handlers...');
-        
-        // Primary click handler
-        disclaimerButton.addEventListener('click', () => {
-            console.log('🚀 Disclaimer button clicked, dismissing modal...');
-            disclaimer.classList.add('hidden');
-            console.log('✅ Disclaimer dismissed successfully');
-        });
-        
-        // Alternative handler - click anywhere on button area
-        disclaimerButton.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            console.log('📱 Disclaimer button touched, dismissing modal...');
-            disclaimer.classList.add('hidden');
-        });
-        
-        // Fallback - auto-dismiss after 10 seconds if still visible
-        setTimeout(() => {
-            if (disclaimer && !disclaimer.classList.contains('hidden')) {
-                console.log('⏰ Auto-dismissing disclaimer after timeout...');
-                disclaimer.classList.add('hidden');
-            }
-        }, 10000);
-        
-        // Emergency fallback - Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && disclaimer && !disclaimer.classList.contains('hidden')) {
-                console.log('⌨️ Escape key pressed, dismissing disclaimer...');
-                disclaimer.classList.add('hidden');
-            }
-        });
-        
-    } else {
-        console.warn('❌ Disclaimer elements not found:', { disclaimer, disclaimerButton });
-    }
+    // Initialize form validation
+    initializeFormValidation();
+    
+    // Disclaimer modal is fully controlled in index.html script to avoid conflicts
     
     // Test database connection on startup
     testDatabaseOnStartup();
@@ -219,6 +214,15 @@ function initializeAutoHideHeader() {
 }
 
 /**
+ * Initialize mobile touch handlers
+ */
+function initializeMobileTouchHandlers() {
+    // Rely on CSS `touch-action: manipulation` for mobile responsiveness.
+    // Avoid JS-level prevention to preserve native behaviors (file inputs, labels, etc.).
+    console.log('✅ Mobile touch handlers initialized (CSS-based)');
+}
+
+/**
  * Select analysis mode
  * @param {string} mode - Selected mode ('quick', 'clinical', 'advanced')
  */
@@ -271,10 +275,24 @@ export function backToModeSelection() {
     // Clean up MediaPipe
     if (UIState.pose) {
         try {
-            UIState.pose.close();
+            // Close the pose instance
+            if (typeof UIState.pose.close === 'function') {
+                UIState.pose.close();
+            }
             UIState.pose = null;
         } catch (error) {
             console.warn('Error closing MediaPipe:', error);
+            UIState.pose = null; // Ensure it's cleared even on error
+        }
+    }
+    
+    // Clean up enhanced detector if used
+    if (UIState.enhancedDetector) {
+        try {
+            UIState.enhancedDetector.close();
+            UIState.enhancedDetector = null;
+        } catch (error) {
+            console.warn('Error closing enhanced detector:', error);
         }
     }
     
@@ -302,7 +320,10 @@ export function backToModeSelection() {
         advanced: {
             front: null,
             side: null,
-            back: null
+            back: null,
+            images: {},      // Store uploaded image data with metadata
+            landmarks: {},   // Store MediaPipe pose landmarks for each view
+            patterns: []     // Store detected postural patterns
         }
     };
     
@@ -348,32 +369,42 @@ export function backToModeSelection() {
  */
 export function showTab(mode, tabName) {
     try {
-        // Collect data from current tab before switching (if clinical mode)
-        if (mode === 'clinical' && UIState.currentTab) {
-            collectCurrentTabData(UIState.currentTab);
+        // Get current tab before switching
+        const previousTab = UIState.currentTab;
+        
+        // Save data from previous tab before switching
+        if (previousTab && previousTab !== tabName) {
+            if (mode === 'clinical') {
+                collectCurrentTabData(previousTab);
+                console.log(`Collected data from ${previousTab} tab before switching to ${tabName}`);
+            }
         }
         
-        // Hide all tabs
+        // Hide all tabs and mark as hidden for a11y
         document.querySelectorAll(`#${mode}-mode .tab-content`).forEach(tab => {
             tab.classList.remove('active');
+            tab.setAttribute('hidden', '');
         });
-        
-        // Remove active from all buttons
+
+        // Remove active from all buttons and update aria-selected
         document.querySelectorAll(`#${mode}-mode .tab-btn`).forEach(btn => {
             btn.classList.remove('active');
+            btn.setAttribute('aria-selected', 'false');
         });
-        
+
         // Show selected tab
         const targetTab = document.getElementById(`${mode}-${tabName}`);
         if (targetTab) {
             targetTab.classList.add('active');
+            targetTab.removeAttribute('hidden');
         }
-        
+
         // Activate button
         const activeBtn = Array.from(document.querySelectorAll(`#${mode}-mode .tab-btn`))
             .find(btn => btn.dataset.tab === tabName);
         if (activeBtn) {
             activeBtn.classList.add('active');
+            activeBtn.setAttribute('aria-selected', 'true');
         }
         
         // Update tab data when showing summary
@@ -518,7 +549,7 @@ export function handleFileUpload(identifier, event) {
     
     reader.onload = function(e) {
         try {
-            displayUploadedImage(identifier, e.target.result);
+            displayUploadedImage(identifier, e.target.result, file.name);
             hideLoading();
             showNotification('Image uploaded successfully', 'success');
         } catch (error) {
@@ -540,40 +571,72 @@ export function handleFileUpload(identifier, event) {
  * Display uploaded image with enhanced error handling and validation
  * @param {string} identifier - View identifier
  * @param {string} imageSrc - Image data URL
+ * @param {string} filename - Original filename
  */
-function displayUploadedImage(identifier, imageSrc) {
+function displayUploadedImage(identifier, imageSrc, filename = 'uploaded-image.jpg') {
     try {
         // Validate image before displaying
         const img = new Image();
+        
+        // Set up handlers BEFORE setting src to avoid race conditions
         img.onload = function() {
             // Check image dimensions
             if (this.width < 200 || this.height < 200) {
-                throw new Error('Image too small. Please use an image at least 200x200 pixels.');
+                showNotification('Image too small. Please use an image at least 200x200 pixels.', 'error');
+                return;
             }
             
             const preview = document.getElementById(`${identifier}-preview`);
             if (preview) {
-                preview.src = imageSrc;
-                preview.classList.remove('hidden');
-                
-                // Add loading class until image loads
-                preview.classList.add('loading');
+                // Set up preview onload handler BEFORE setting src
                 preview.onload = () => {
                     preview.classList.remove('loading');
                 };
+                
+                preview.onerror = () => {
+                    console.error('Preview image failed to load');
+                    preview.classList.remove('loading');
+                };
+                
+                preview.src = imageSrc;
+                preview.classList.remove('hidden');
+                preview.classList.add('loading');
             }
             
             // Hide camera if active
             const camera = document.getElementById(`${identifier}-camera`);
             if (camera) camera.classList.add('hidden');
             
-            // Show analyze button for quick mode with proper state
+            // Show analyze button and calibration input for quick mode
             if (identifier === 'quick') {
                 const analyzeBtn = document.getElementById('quick-analyze-btn');
+                const calibrationDiv = document.getElementById('quick-calibration');
                 if (analyzeBtn) {
                     analyzeBtn.classList.remove('hidden');
                     setButtonState(analyzeBtn, 'ready');
                 }
+                // CRITICAL FIX 2d: Show calibration input when image is uploaded
+                if (calibrationDiv) {
+                    calibrationDiv.classList.remove('hidden');
+                }
+            }
+            
+            // Store image in UIState for advanced mode
+            if (identifier.includes('advanced-')) {
+                const [mode, view] = identifier.split('-');
+                if (!UIState.analysisData.advanced.images) {
+                    UIState.analysisData.advanced.images = {};
+                }
+                UIState.analysisData.advanced.images[view] = {
+                    imageData: imageSrc,
+                    filename: filename,
+                    uploadTime: new Date().toISOString(),
+                    dimensions: {
+                        width: this.width,
+                        height: this.height
+                    }
+                };
+                console.log(`Advanced mode: Stored ${view} image in UIState`);
             }
             
             // Update status for clinical/advanced modes
@@ -584,9 +647,11 @@ function displayUploadedImage(identifier, imageSrc) {
         };
         
         img.onerror = function() {
-            throw new Error('Invalid or corrupted image file.');
+            console.error('displayUploadedImage: Failed to load image');
+            showNotification('Invalid or corrupted image file. Please try another image.', 'error');
         };
         
+        // Set src AFTER handlers to ensure they're attached before loading
         img.src = imageSrc;
         
     } catch (error) {
@@ -647,7 +712,17 @@ function updateUploadStatus(mode, view) {
  */
 export async function analyzePosture(mode) {
     try {
-        showLoading('Analyzing posture...');
+        // Show enhanced loading with progress for analysis
+        const progressSteps = [
+            'Validating image',
+            'Detecting pose landmarks',
+            'Calculating metrics',
+            'Generating recommendations'
+        ];
+        const progressController = showLoadingWithProgress('Analyzing posture...', progressSteps);
+        
+        // Step 1: Validate image source
+        progressController.updateProgress(0, 25);
         
         let imageSource;
         const video = document.getElementById(`${mode}-camera`);
@@ -668,10 +743,23 @@ export async function analyzePosture(mode) {
             throw new Error('No valid image source found. Please capture or upload an image first.');
         }
         
+        // Step 2: Initialize MediaPipe
+        progressController.updateProgress(1, 40);
+        
         // Validate MediaPipe initialization
-        if (!UIState.pose) {
-            UIState.pose = initializePose(mode);
+        // Always use EnhancedPoseDetector for advanced mode
+        if (mode === 'advanced') {
+            if (!UIState.enhancedDetector) {
+                UIState.enhancedDetector = new EnhancedPoseDetector();
+                await UIState.enhancedDetector.initialize(mode);
+                UIState.pose = UIState.enhancedDetector.pose; // Get the actual pose object
+            }
+        } else if (!UIState.pose) {
+            UIState.pose = await initializePose(mode); // Await MediaPipe initialization
         }
+        
+        // Step 3: Process with MediaPipe
+        progressController.updateProgress(1, 60);
         
         // Process with MediaPipe with timeout
         const analysisPromise = new Promise((resolve, reject) => {
@@ -679,18 +767,149 @@ export async function analyzePosture(mode) {
                 reject(new Error('Analysis timed out. Please try again.'));
             }, 30000); // 30 second timeout
             
-            UIState.pose.onResults((results) => {
-                clearTimeout(timeout);
-                if (mode === 'quick') {
-                    processQuickResults(results);
-                } else {
-                    processAdvancedResults(results, 'analysis');
+            // Handle enhanced detector or regular pose
+            if (mode === 'advanced') {
+                // Remove any existing listeners first
+                if (typeof UIState.enhancedDetector?.removeAllListeners === 'function') {
+                    UIState.enhancedDetector.removeAllListeners('pose');
                 }
-                resolve(results);
-            });
+                
+                // Create one-shot listener
+                const onPose = (results) => {
+                    clearTimeout(timeout);
+                    
+                    // Step 4: Process results
+                    progressController.updateProgress(2, 80);
+                    
+                    // Log enhanced metrics
+                    console.log('Enhanced pose results:', {
+                        confidence: results.confidence,
+                        stability: results.stability,
+                        landmarks: results.poseLandmarks.length
+                    });
+                    
+                    processAdvancedResults(results, 'analysis');
+                    
+                    // Complete
+                    progressController.updateProgress(3, 100);
+                    progressController.complete();
+                    
+                    // Remove listener after use
+                    if (typeof UIState.enhancedDetector?.off === 'function') {
+                        UIState.enhancedDetector.off('pose', onPose);
+                    }
+                    
+                    resolve(results);
+                };
+                
+                UIState.enhancedDetector.on('pose', onPose);
+            } else {
+                // Add error checking for pose object with fallback recovery
+                if (!UIState.pose || typeof UIState.pose.onResults !== 'function') {
+                    console.warn('MediaPipe not ready, attempting reinitialization...', {
+                        pose: UIState.pose,
+                        hasOnResults: UIState.pose ? typeof UIState.pose.onResults : 'no pose object'
+                    });
+                    
+                    // Reinitialize MediaPipe without async in Promise constructor
+                    Promise.resolve()
+                        .then(() => {
+                            UIState.pose = null;
+                            return initializePose(mode);
+                        })
+                        .then((pose) => {
+                            UIState.pose = pose;
+                            // Wait a bit more for WASM to load completely
+                            return new Promise(res => setTimeout(res, 500));
+                        })
+                        .then(() => {
+                            // Check again
+                            if (!UIState.pose || typeof UIState.pose.onResults !== 'function') {
+                                throw new Error('MediaPipe failed to initialize after retry');
+                            }
+                            
+                            console.log('MediaPipe successfully reinitialized');
+                            
+                            // Set up the results handler
+                            UIState.pose.onResults((results) => {
+                                clearTimeout(timeout);
+                                
+                                // Step 4: Process results
+                                progressController.updateProgress(2, 80);
+                                
+                                if (mode === 'quick') {
+                                    processQuickResults(results);
+                                } else {
+                                    processAdvancedResults(results, 'analysis');
+                                }
+                                
+                                // Complete
+                                progressController.updateProgress(3, 100);
+                                progressController.complete();
+                                
+                                resolve(results);
+                            });
+                        })
+                        .catch((retryError) => {
+                            console.error('MediaPipe reinitialization failed:', retryError);
+                            reject(new Error('Pose detection engine not ready. Please refresh the page and try again.'));
+                        });
+                    
+                    return; // Exit early while reinitialization happens
+                }
+                
+                UIState.pose.onResults((results) => {
+                    clearTimeout(timeout);
+                    
+                    // Step 4: Process results
+                    progressController.updateProgress(2, 80);
+                    
+                    if (mode === 'quick') {
+                        processQuickResults(results);
+                    } else {
+                        processAdvancedResults(results, 'analysis');
+                    }
+                    
+                    // Complete
+                    progressController.updateProgress(3, 100);
+                    progressController.complete();
+                    
+                    resolve(results);
+                });
+            }
         });
         
-        await UIState.pose.send({image: imageSource});
+        // Send image to the appropriate handler
+        if (mode === 'advanced') {
+            // Send multiple frames for temporal smoothing
+            const frames = UIState.enhancedDetector.historySize || 5;
+            for (let i = 0; i < frames; i++) {
+                await UIState.enhancedDetector.send({image: imageSource});
+            }
+        } else {
+            // Ensure pose.send is available before calling with fallback check
+            if (!UIState.pose || typeof UIState.pose.send !== 'function') {
+                console.warn('MediaPipe pose.send not available, checking initialization state...', {
+                    pose: UIState.pose,
+                    hasSend: UIState.pose ? typeof UIState.pose.send : 'no pose object',
+                    isInitialized: UIState.pose ? UIState.pose._isInitialized : false
+                });
+                
+                // If MediaPipe is marked as initialized but send is missing, something went wrong
+                if (UIState.pose && UIState.pose._isInitialized) {
+                    console.error('MediaPipe initialization inconsistency detected');
+                    throw new Error('Pose detection engine is in an inconsistent state. Please refresh the page.');
+                } else {
+                    // Wait a bit more and try again
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    if (!UIState.pose || typeof UIState.pose.send !== 'function') {
+                        throw new Error('Pose detection engine not ready. Please refresh the page and try again.');
+                    }
+                }
+            }
+            
+            await UIState.pose.send({image: imageSource});
+        }
         await analysisPromise;
         
     } catch (error) {
@@ -720,6 +939,9 @@ function processQuickResults(results) {
         
         // Check landmark quality
         const landmarks = results.poseLandmarks;
+        
+        // Update calibration status with enhanced landmark-based system
+        updateCalibrationStatus(landmarks, 'quick');
         const criticalLandmarks = [11, 12, 23, 24]; // shoulders and hips
         const lowQualityCount = criticalLandmarks.filter(idx => 
             !landmarks[idx] || landmarks[idx].visibility < 0.5
@@ -729,8 +951,13 @@ function processQuickResults(results) {
             showNotification('Low quality pose detection. Results may be less accurate.', 'warning');
         }
         
-        // Calculate basic metrics with error handling
-        const metrics = calculateBasicMetrics(landmarks);
+        // CRITICAL FIX 2d: Get patient height and image metadata for calibration
+        const patientHeight = getPatientHeight('quick');
+        const imageElement = document.getElementById('quick-preview');
+        const imageMetadata = getImageMetadata('quick-preview');
+        
+        // Calculate basic metrics with real-world calibration
+        const metrics = calculateBasicMetrics(landmarks, patientHeight, imageMetadata);
         if (!metrics || Object.values(metrics).some(v => isNaN(v))) {
             throw new Error('Error calculating posture metrics');
         }
@@ -793,6 +1020,10 @@ function displayQuickResults(score, metrics, landmarks) {
     // Update score
     document.getElementById('quick-score').textContent = score;
     
+    // Check if we have calibration data (patient height set)
+    const hasCalibration = getPatientHeight('quick') > 0;
+    const unitLabel = hasCalibration ? ' cm' : '';
+    
     // Display metrics
     const metricsHTML = `
         <div class="metric-card">
@@ -808,7 +1039,7 @@ function displayQuickResults(score, metrics, landmarks) {
             <div class="metric-header">
                 <span class="metric-title">Shoulder Level</span>
                 <span class="metric-value">
-                    ${formatNumber(metrics.shoulderLevel, 1)} cm
+                    ${formatNumber(metrics.shoulderLevel, 1)}${unitLabel}
                     <span class="severity-indicator severity-${getSeverity(metrics.shoulderLevel, [1, 2, 3])}"></span>
                 </span>
             </div>
@@ -817,26 +1048,37 @@ function displayQuickResults(score, metrics, landmarks) {
             <div class="metric-header">
                 <span class="metric-title">Hip Level</span>
                 <span class="metric-value">
-                    ${formatNumber(metrics.hipLevel, 1)} cm
+                    ${formatNumber(metrics.hipLevel, 1)}${unitLabel}
                     <span class="severity-indicator severity-${getSeverity(metrics.hipLevel, [1, 2, 3])}"></span>
                 </span>
             </div>
         </div>
     `;
+    // Use innerHTML for metrics display (no user input)
     document.getElementById('quick-metrics').innerHTML = metricsHTML;
     
     // Generate recommendations
     const exercises = generateExerciseRecommendations(metrics);
-    let recommendationsHTML = '<ul style="list-style: none; padding: 0;">';
+    const recommendationsContainer = document.getElementById('quick-recommendations');
+    recommendationsContainer.innerHTML = ''; // Clear existing content
+    
+    const ul = document.createElement('ul');
+    ul.style.listStyle = 'none';
+    ul.style.padding = '0';
+    
     exercises.forEach(exercise => {
-        recommendationsHTML += `
-            <li style="padding: 8px 0;">
-                <strong>${exercise.name}</strong> - ${exercise.description}
-            </li>
-        `;
+        const li = document.createElement('li');
+        li.style.padding = '8px 0';
+        
+        const strong = document.createElement('strong');
+        strong.textContent = exercise.name;
+        
+        li.appendChild(strong);
+        li.appendChild(document.createTextNode(' - ' + exercise.description));
+        ul.appendChild(li);
     });
-    recommendationsHTML += '</ul>';
-    document.getElementById('quick-recommendations').innerHTML = recommendationsHTML;
+    
+    recommendationsContainer.appendChild(ul);
     
     // Show results
     document.getElementById('quick-results').classList.remove('hidden');
@@ -879,37 +1121,34 @@ async function performAdvancedAnalysis() {
             images[view] = img;
         }
         
-        // Initialize MediaPipe if needed
-        if (!UIState.pose) {
-            showLoading('Initializing analysis engine...');
-            UIState.pose = initializePose('advanced');
-            // Wait a bit for MediaPipe to initialize
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        // Initialize enhanced detector for advanced mode
+        if (!UIState.enhancedDetector) {
+            showLoading('Initializing advanced analysis engine...');
+            UIState.enhancedDetector = new EnhancedPoseDetector();
+            await UIState.enhancedDetector.initialize('advanced');
         }
         
-        // Process each view with progress updates
+        // Process each view sequentially to avoid race conditions
         let completedViews = 0;
         for (const view of views) {
             showLoading(`Analyzing ${view} view (${completedViews + 1}/${views.length})...`);
             
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error(`Analysis of ${view} view timed out`));
-                }, 20000); // 20 second timeout per view
+            try {
+                // Process this view and wait for completion
+                console.log(`Starting analysis of ${view} view`);
+                const results = await processViewWithTimeout(view, images[view], 20000);
                 
-                UIState.pose.onResults((results) => {
-                    clearTimeout(timeout);
-                    try {
-                        processAdvancedResults(results, view);
-                        completedViews++;
-                        resolve(results);
-                    } catch (error) {
-                        reject(error);
-                    }
-                });
+                // Process results immediately while we know which view it belongs to
+                console.log(`Processing pose results for ${view} view`);
+                processAdvancedResults(results, view);
+                completedViews++;
                 
-                UIState.pose.send({image: images[view]}).catch(reject);
-            });
+                // Small delay between views to ensure clean state
+                await new Promise(resolve => setTimeout(resolve, 100));
+            } catch (error) {
+                console.error(`Error processing ${view} view:`, error);
+                throw error;
+            }
         }
         
         // Compile results
@@ -926,6 +1165,59 @@ async function performAdvancedAnalysis() {
         // Reset upload states so user can try again
         resetAdvancedUploadStates();
     }
+}
+
+/**
+ * Process a single view with timeout and proper cleanup
+ * @param {string} view - The view to process ('front', 'side', or 'back')
+ * @param {HTMLImageElement} image - The image element to analyze
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise<Object>} Promise resolving to pose results
+ */
+async function processViewWithTimeout(view, image, timeout) {
+    return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            // Clean up listener before rejecting
+            if (UIState.enhancedDetector) {
+                UIState.enhancedDetector.removeAllListeners('pose');
+            }
+            reject(new Error(`Analysis of ${view} view timed out`));
+        }, timeout);
+        
+        // Clear any pending processing and listeners
+        if (UIState.enhancedDetector) {
+            UIState.enhancedDetector.landmarkHistory = [];
+            UIState.enhancedDetector.removeAllListeners('pose');
+            // Ensure static image mode is enabled for proper processing
+            UIState.enhancedDetector.isStaticImageMode = true;
+        }
+        
+        // Set up one-time listener for this specific view
+        const onPose = (results) => {
+            clearTimeout(timeoutId);
+            // Remove listener immediately to prevent multiple calls
+            UIState.enhancedDetector.off('pose', onPose);
+            
+            // Check if we got valid results
+            if (!results || !results.poseLandmarks) {
+                console.warn(`No pose detected for ${view} view`);
+                // Continue with empty results rather than failing
+                results = { poseLandmarks: null, confidence: 0, stability: 0 };
+            }
+            
+            resolve(results);
+        };
+        
+        UIState.enhancedDetector.on('pose', onPose);
+        
+        // Send image for processing
+        console.log(`Sending ${view} image for analysis`);
+        UIState.enhancedDetector.send({image: image}).catch(error => {
+            clearTimeout(timeoutId);
+            UIState.enhancedDetector.off('pose', onPose);
+            reject(error);
+        });
+    });
 }
 
 /**
@@ -951,6 +1243,37 @@ function resetAdvancedUploadStates() {
     });
 }
 
+// NOTE: calculateMeasurementConfidence is now imported from utils.js (enhanced version)
+
+/**
+ * Update calibration status display for a given mode
+ * @param {Array} landmarks - MediaPipe landmarks
+ * @param {string} mode - Analysis mode ('quick', 'clinical', 'advanced')
+ */
+function updateCalibrationStatus(landmarks, mode) {
+    if (!landmarks || landmarks.length < 33) {
+        console.log(`updateCalibrationStatus: No valid landmarks for ${mode} mode`);
+        return;
+    }
+    
+    try {
+        const patientHeight = getPatientHeight(mode);
+        const imageMetadata = getImageMetadata(`${mode}-preview`) || getImageMetadata(`${mode}-captured-image`);
+        
+        if (patientHeight && imageMetadata) {
+            const calibrationData = calculateLandmarkCalibration(landmarks, patientHeight, imageMetadata);
+            const status = getCalibrationStatus(calibrationData);
+            
+            console.log(`${mode} mode calibration:`, status);
+            
+            // Update UI with calibration status - could add visual indicators here
+            // For now, just log the status for clinical review
+        }
+    } catch (error) {
+        console.warn(`updateCalibrationStatus error for ${mode}:`, error.message);
+    }
+}
+
 /**
  * Process advanced mode results
  * @param {Object} results - MediaPipe results
@@ -962,32 +1285,124 @@ function processAdvancedResults(results, view) {
         return;
     }
     
-    // Analyze based on view
+    // Store landmarks with view metadata to prevent mixing
+    if (!UIState.analysisData.advanced.landmarks) {
+        UIState.analysisData.advanced.landmarks = {};
+    }
+    UIState.analysisData.advanced.landmarks[view] = {
+        view: view,
+        landmarks: results.poseLandmarks,
+        timestamp: Date.now(),
+        processedAt: new Date().toISOString()
+    };
+    
+    // Update calibration status with enhanced landmark-based system
+    updateCalibrationStatus(results.poseLandmarks, `advanced-${view}`);
+    
+    // CRITICAL FIX 2d: Get patient height and image metadata for calibration  
+    const patientHeight = getPatientHeight('advanced');
+    const imageMetadata = getImageMetadata(`advanced-${view}-preview`);
+    
+    // Analyze based on view with real-world calibration
     let analysis;
     switch (view) {
         case 'front':
-            analysis = analyzeFrontView(results.poseLandmarks);
+            analysis = analyzeFrontView(results.poseLandmarks, patientHeight, imageMetadata);
             break;
         case 'side':
-            analysis = analyzeSideView(results.poseLandmarks);
+            analysis = analyzeSideView(results.poseLandmarks, patientHeight, imageMetadata);
             break;
         case 'back':
-            analysis = analyzeBackView(results.poseLandmarks);
+            analysis = analyzeBackView(results.poseLandmarks, patientHeight, imageMetadata);
             break;
     }
     
-    UIState.analysisData.advanced[view] = analysis;
+    // Convert to database format with measurements array
+    const measurements = [];
+    if (analysis) {
+        Object.entries(analysis).forEach(([key, value]) => {
+            if (typeof value === 'number' && key !== 'totalDeviation' && key !== 'view') {
+                measurements.push({
+                    name: key,
+                    type: key,  // Both for compatibility
+                    value: value,
+                    unit: MEASUREMENT_UNITS[key] || 'units',  // FIXED: Use correct unit mapping
+                    confidence: calculateMeasurementConfidence(results.poseLandmarks, key), // FIXED: Dynamic confidence
+                    viewType: view
+                });
+            }
+        });
+        
+        // Handle special cases like weight distribution
+        if (analysis.weightDistribution) {
+            measurements.push(
+                {
+                    name: 'weightDistributionLeft',
+                    type: 'weight_distribution_left',
+                    value: analysis.weightDistribution.left,
+                    unit: 'percent',
+                    confidence: calculateMeasurementConfidence(results.poseLandmarks, 'weightDistributionLeft'), // FIXED: Dynamic confidence
+                    viewType: view
+                },
+                {
+                    name: 'weightDistributionRight',
+                    type: 'weight_distribution_right',
+                    value: analysis.weightDistribution.right,
+                    unit: 'percent',
+                    confidence: calculateMeasurementConfidence(results.poseLandmarks, 'weightDistributionRight'), // FIXED: Dynamic confidence
+                    viewType: view
+                }
+            );
+        }
+    }
     
-    // Draw skeleton
-    const canvas = document.getElementById(`advanced-${view}-canvas`);
+    // Store both formats for compatibility
+    UIState.analysisData.advanced[view] = {
+        ...analysis,
+        measurements: measurements,
+        confidence: results.confidence || 0.85,
+        stability: results.stability || 1.0,
+        timestamp: new Date().toISOString()
+    };
+    
+    console.log(`Processed ${view} view with ${measurements.length} measurements`);
+    
+    // Draw skeleton with verification
+    const canvasId = `advanced-${view}-canvas`;
+    const canvas = document.getElementById(canvasId);
     const ctx = canvas.getContext('2d');
     const img = document.getElementById(`advanced-${view}-preview`);
     
+    // Verify we have the correct landmarks for this view
+    const storedData = UIState.analysisData.advanced.landmarks[view];
+    if (!storedData || storedData.view !== view) {
+        console.error(`Landmark mismatch: Expected ${view}, got ${storedData?.view || 'none'}`);
+        return;
+    }
+    
+    // Use the verified landmarks from storage
+    const verifiedLandmarks = storedData.landmarks;
+    console.log(`Drawing ${view} view skeleton on ${canvasId} with ${verifiedLandmarks.length} landmarks from stored data`);
+    
+    // Set canvas size to match image
     canvas.width = img.width;
     canvas.height = img.height;
     
-    drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#667eea', lineWidth: 2});
-    drawLandmarks(ctx, results.poseLandmarks, {color: '#764ba2', radius: 3});
+    // Clear any previous drawings to prevent overlay issues
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw the pose skeleton using verified landmarks
+    drawConnectors(ctx, verifiedLandmarks, POSE_CONNECTIONS, {color: '#667eea', lineWidth: 2});
+    drawLandmarks(ctx, verifiedLandmarks, {color: '#764ba2', radius: 3});
+    
+    // Add debug label showing which view's skeleton this is
+    ctx.font = 'bold 16px Arial';
+    ctx.fillStyle = '#667eea';
+    ctx.fillText(`${view.toUpperCase()} SKELETON`, 10, 25);
+    
+    // Additional debug info
+    ctx.font = '12px Arial';
+    ctx.fillText(`Processed: ${storedData.processedAt}`, 10, 45);
 }
 
 /**
@@ -1034,13 +1449,13 @@ function displayAdvancedMetrics(data) {
             formatNumber(data.front.qAngle, 1) + '°',
             getSeverity(Math.abs(data.front.qAngle - 15), [3, 5, 8]));
         metricsHTML += createMetricCard('Shoulder Asymmetry', 
-            formatNumber(data.front.shoulderAsymmetry, 1) + ' cm',
+            formatNumber(data.front.shoulderAsymmetry, 1) + '%',
             getSeverity(data.front.shoulderAsymmetry, [1, 2, 3]));
     }
     
     if (data.side) {
         metricsHTML += createMetricCard('Forward Head', 
-            formatNumber(data.side.forwardHead, 1) + ' cm',
+            formatNumber(data.side.forwardHead, 1) + '%',
             getSeverity(Math.abs(data.side.forwardHead), [2, 4, 6]));
         metricsHTML += createMetricCard('Pelvic Angle', 
             formatNumber(data.side.pelvicAngle, 1) + '°',
@@ -1049,7 +1464,7 @@ function displayAdvancedMetrics(data) {
     
     if (data.back) {
         metricsHTML += createMetricCard('Spinal Deviation', 
-            formatNumber(data.back.spinalDeviation, 1) + ' cm',
+            formatNumber(data.back.spinalDeviation, 1) + '%',
             getSeverity(data.back.spinalDeviation, [2, 3, 4]));
     }
     
@@ -1255,6 +1670,97 @@ export function showLoading(message = 'Analyzing posture...', timeoutMs = 30000)
 }
 
 /**
+ * Show enhanced loading overlay with progress tracking
+ */
+export function showLoadingWithProgress(message = 'Processing...', steps = []) {
+    try {
+        console.log('🔄 Showing loading with progress:', message, steps);
+        loadingStartTime = Date.now();
+        
+        const loading = document.getElementById('loading');
+        if (!loading) {
+            console.error('❌ Loading element not found');
+            return null;
+        }
+        
+        // Create enhanced loading content with progress
+        loading.innerHTML = `
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">${message}</div>
+                <div class="loading-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-steps">
+                        ${steps.map((step, index) => `
+                            <div class="progress-step" data-step="${index}">
+                                <svg class="step-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                </svg>
+                                <span class="step-text">${step}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        loading.classList.add('active');
+        
+        // Clear any existing timeout
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+        }
+        
+        // Set auto-hide timeout
+        loadingTimeout = setTimeout(() => {
+            console.warn('⏰ Loading timeout reached, auto-hiding');
+            hideLoading();
+            showNotification('Operation took longer than expected', 'warning');
+        }, 60000); // 60 seconds for progress operations
+        
+        // Return progress controller
+        return {
+            updateProgress: (stepIndex, percent) => {
+                const fill = document.getElementById('progress-fill');
+                if (fill) {
+                    fill.style.width = `${percent}%`;
+                }
+                
+                const steps = loading.querySelectorAll('.progress-step');
+                steps.forEach((step, index) => {
+                    if (index < stepIndex) {
+                        step.classList.add('completed');
+                        step.querySelector('.step-icon').innerHTML = '<path d="M20 6L9 17l-5-5"/>';
+                    } else if (index === stepIndex) {
+                        step.classList.add('active');
+                        step.classList.remove('completed');
+                    }
+                });
+            },
+            complete: () => {
+                const fill = document.getElementById('progress-fill');
+                if (fill) {
+                    fill.style.width = '100%';
+                }
+                const steps = loading.querySelectorAll('.progress-step');
+                steps.forEach(step => {
+                    step.classList.add('completed');
+                    step.querySelector('.step-icon').innerHTML = '<path d="M20 6L9 17l-5-5"/>';
+                });
+                setTimeout(hideLoading, 500);
+            },
+            hide: hideLoading
+        };
+        
+    } catch (error) {
+        console.error('❌ Error showing loading with progress:', error);
+        return null;
+    }
+}
+
+/**
  * Hide loading overlay
  */
 export function hideLoading() {
@@ -1344,8 +1850,45 @@ function handleKeyboardShortcuts(event) {
  */
 function handleGlobalClick(event) {
     const target = event.target;
-    const button = target.closest('[data-action]');
     
+    // Handle mode selection cards FIRST (before checking for data-action)
+    if (target.closest('.mode-card')) {
+        const modeCard = target.closest('.mode-card');
+        const selectedMode = modeCard.dataset.mode;
+        console.log('🔘 Mode card clicked:', {
+            element: modeCard,
+            mode: selectedMode,
+            classList: Array.from(modeCard.classList),
+            dataset: modeCard.dataset
+        });
+        
+        if (selectedMode) {
+            console.log('🚀 Calling selectMode with:', selectedMode);
+            selectMode(selectedMode);
+        } else {
+            console.error('❌ No mode found in dataset:', modeCard.dataset);
+        }
+        return; // Exit after handling mode selection
+    }
+    
+    // Handle back button
+    if (target.closest('.nav-back')) {
+        backToModeSelection();
+        return;
+    }
+    
+    // Handle tab buttons
+    if (target.closest('.tab-btn')) {
+        const tabBtn = target.closest('.tab-btn');
+        const tabName = tabBtn.dataset.tab;
+        if (tabName && UIState.currentMode) {
+            showTab(UIState.currentMode, tabName);
+        }
+        return;
+    }
+    
+    // Now handle buttons with data-action
+    const button = target.closest('[data-action]');
     if (!button) return;
     
     const action = button.dataset.action;
@@ -1436,6 +1979,14 @@ function handleGlobalClick(event) {
                 backToModeSelection();
                 break;
                 
+            case 'camera-capture':
+                handleCameraCapture(button);
+                break;
+                
+            case 'file-browse':
+                handleFileBrowse(button);
+                break;
+                
             default:
                 console.warn('Unknown action:', action);
         }
@@ -1443,39 +1994,6 @@ function handleGlobalClick(event) {
         console.error('Error handling click:', error);
         setButtonState(button, 'error');
         showNotification('Action failed. Please try again.', 'error');
-    }
-    
-    // Handle mode selection cards
-    if (target.closest('.mode-card')) {
-        const modeCard = target.closest('.mode-card');
-        const selectedMode = modeCard.dataset.mode;
-        console.log('🔘 Mode card clicked:', {
-            element: modeCard,
-            mode: selectedMode,
-            classList: Array.from(modeCard.classList),
-            dataset: modeCard.dataset
-        });
-        
-        if (selectedMode) {
-            console.log('🚀 Calling selectMode with:', selectedMode);
-            selectMode(selectedMode);
-        } else {
-            console.error('❌ No mode found in dataset:', modeCard.dataset);
-        }
-    }
-    
-    // Handle back button
-    if (target.closest('.nav-back')) {
-        backToModeSelection();
-    }
-    
-    // Handle tab buttons
-    if (target.closest('.tab-btn')) {
-        const tabBtn = target.closest('.tab-btn');
-        const tabName = tabBtn.dataset.tab;
-        if (tabName && UIState.currentMode) {
-            showTab(UIState.currentMode, tabName);
-        }
     }
 }
 
@@ -1572,26 +2090,7 @@ function createSpinner() {
     return spinner;
 }
 
-/**
- * Initialize touch handlers for mobile
- */
-function initializeTouchHandlers() {
-    let touchStartY = 0;
-    
-    document.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    
-    document.addEventListener('touchmove', (e) => {
-        const touchY = e.touches[0].clientY;
-        const scrollTop = window.scrollY;
-        
-        // Prevent overscroll on iOS
-        if (scrollTop === 0 && touchY > touchStartY) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-}
+// REMOVED initializeTouchHandlers function - was preventing natural iOS bounce scrolling
 
 /**
  * Save current work
@@ -1610,25 +2109,28 @@ function saveCurrentWork() {
 /**
  * Generate clinical report
  */
-export function generateClinicalReport() {
+export async function generateClinicalReport() {
     showLoading();
     
-    setTimeout(() => {
-        const reportData = {
-            ...UIState.analysisData.advanced,
-            generatedAt: new Date().toISOString(),
-            clinic: 'Two Tonys Treatment Clinic'
-        };
-        
-        // In production, this would generate an actual PDF
-        console.log('Report data:', reportData);
-        hideLoading();
-        showNotification('Clinical report generated!', 'success');
-    }, 2000);
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const reportData = {
+                ...UIState.analysisData.advanced,
+                generatedAt: new Date().toISOString(),
+                clinic: 'Two Tonys Treatment Clinic'
+            };
+            
+            // In production, this would generate an actual PDF
+            console.log('Report data:', reportData);
+            hideLoading();
+            showNotification('Clinical report generated!', 'success');
+            resolve();
+        }, 2000);
+    });
 }
 
 /**
- * Export biomechanics data
+ * Export biomechanics data with enhanced metadata and image support
  */
 export async function exportBiomechanics() {
     try {
@@ -1638,49 +2140,54 @@ export async function exportBiomechanics() {
             timestamp: new Date().toISOString(),
             mode: 'advanced',
             analysisData: UIState.analysisData.advanced,
+            images: UIState.analysisData.advanced.images || {},
+            landmarks: UIState.analysisData.advanced.landmarks || {},
+            measurements: {
+                front: UIState.analysisData.advanced.front?.measurements || [],
+                side: UIState.analysisData.advanced.side?.measurements || [],
+                back: UIState.analysisData.advanced.back?.measurements || []
+            },
             metadata: {
                 version: '1.0',
-                clinic: 'Two Tonys Treatment Clinic'
+                clinic: 'Posture Rehab AI',
+                includesImages: !!UIState.analysisData.advanced.images && 
+                               Object.keys(UIState.analysisData.advanced.images).length > 0,
+                includesLandmarks: !!UIState.analysisData.advanced.landmarks && 
+                                  Object.keys(UIState.analysisData.advanced.landmarks).length > 0,
+                totalMeasurements: (UIState.analysisData.advanced.front?.measurements?.length || 0) +
+                                  (UIState.analysisData.advanced.side?.measurements?.length || 0) +
+                                  (UIState.analysisData.advanced.back?.measurements?.length || 0)
             }
         };
         
+        // If patient exists, save to database
+        if (UIState.currentPatientId) {
+            saveCompleteAssessment({
+                ...exportData,
+                patientId: UIState.currentPatientId
+            }).then(result => {
+                if (result.success) {
+                    showNotification('Analysis saved to database!', 'success');
+                }
+            }).catch(error => {
+                console.error('Database save failed:', error);
+                showNotification('Database save failed, but local export succeeded', 'warning');
+            });
+        }
+        
         // Download JSON file
-        downloadJSON(exportData, `biomechanics-${Date.now()}.json`);
+        downloadJSON(exportData, 'advanced-biomechanics-analysis.json');
         
         // Generate PDF report
-        try {
-            await generatePDF(exportData, `biomechanics-report-${Date.now()}.pdf`);
-            showNotification('Biomechanics data exported with PDF report!', 'success');
-        } catch (pdfError) {
-            console.warn('PDF generation failed, but JSON export succeeded:', pdfError);
-        }
-        
-        // Also save to database if connected
-        try {
-            const dbResult = await saveCompleteAssessment({
-                ...exportData,
-                clientInfo: {
-                    name: 'Anonymous Patient - Advanced Analysis'
-                }
-            });
-            console.log('Biomechanics saved to database:', dbResult);
-            showNotification('Biomechanics data exported and saved to database!', 'success');
-            
-            // Store the assessment ID for reference
-            UIState.currentAssessmentId = dbResult.assessmentId;
-            UIState.currentPatientId = dbResult.patientId;
-            
-        } catch (dbError) {
-            console.warn('Database save failed, but local export succeeded:', dbError);
-            showNotification('Data exported locally (database offline)', 'warning');
-        }
+        generatePDF(exportData, 'advanced-biomechanics-analysis.pdf');
         
         hideLoading();
+        showNotification('Biomechanics analysis exported successfully!', 'success');
         
     } catch (error) {
         console.error('Error exporting biomechanics:', error);
         hideLoading();
-        showNotification('Error exporting data. Please try again.', 'error');
+        showNotification('Failed to export analysis: ' + error.message, 'error');
     }
 }
 
@@ -1714,7 +2221,10 @@ export function resetAdvancedAnalysis() {
     UIState.analysisData.advanced = {
         front: null,
         side: null,
-        back: null
+        back: null,
+        images: {},      // Store uploaded images for each view
+        landmarks: {},   // Store MediaPipe pose landmarks for each view
+        patterns: []     // Store detected postural patterns
     };
     UIState.uploadedViews.advanced = {
         front: false,
@@ -1745,7 +2255,7 @@ export function resetAdvancedAnalysis() {
 function collectCurrentTabData(tabName) {
     try {
         switch (tabName) {
-            case 'client-info':
+            case 'client-info': {
                 const clientData = {
                     name: document.getElementById('client-name')?.value || '',
                     date: document.getElementById('assessment-date')?.value || '',
@@ -1754,8 +2264,9 @@ function collectCurrentTabData(tabName) {
                 };
                 UIState.analysisData.clinical.clientInfo = clientData;
                 break;
+            }
                 
-            case 'north-star':
+            case 'north-star': {
                 const goalData = {
                     primaryGoal: document.getElementById('primary-goal')?.value || '',
                     timeline: document.getElementById('timeline')?.value || '',
@@ -1765,24 +2276,27 @@ function collectCurrentTabData(tabName) {
                 };
                 UIState.analysisData.clinical.goals = goalData;
                 break;
+            }
                 
-            case 'release':
+            case 'release': {
                 const releaseData = {
                     exercises: collectSelectedExercises('#clinical-release .exercise-card'),
                     notes: document.getElementById('release-notes')?.value || ''
                 };
                 UIState.analysisData.clinical.release = releaseData;
                 break;
+            }
                 
-            case 'reset':
+            case 'reset': {
                 const resetData = {
                     exercises: collectSelectedExercises('#clinical-reset .exercise-card'),
                     notes: document.getElementById('reset-notes')?.value || ''
                 };
                 UIState.analysisData.clinical.reset = resetData;
                 break;
+            }
                 
-            case 'rebuild':
+            case 'rebuild': {
                 const rebuildData = {
                     exercises: collectSelectedExercises('#clinical-rebuild .exercise-card'),
                     progression: document.getElementById('progression-timeline')?.value || 'standard',
@@ -1790,6 +2304,36 @@ function collectCurrentTabData(tabName) {
                 };
                 UIState.analysisData.clinical.rebuild = rebuildData;
                 break;
+            }
+                
+            case 'assessment': {
+                // Collect photo data and annotations
+                const photoData = {};
+                ['front', 'side', 'back'].forEach(view => {
+                    const preview = document.getElementById(`clinical-${view}-preview`);
+                    const annotationTextarea = document.querySelector(`#clinical-${view}-card textarea`);
+                    
+                    if (preview && !preview.classList.contains('hidden') && preview.src && preview.src !== window.location.href) {
+                        photoData[view] = {
+                            imageData: preview.src,  // Base64 data URL
+                            annotation: annotationTextarea?.value || '',
+                            uploaded: true,
+                            timestamp: new Date().toISOString()
+                        };
+                        console.log(`Collected ${view} photo with annotation: "${annotationTextarea?.value || 'none'}"`);
+                    }
+                });
+                
+                // Store in UIState
+                UIState.analysisData.clinical.photos = photoData;
+                console.log('Clinical photos collected:', Object.keys(photoData));
+                
+                // Also update upload status
+                Object.keys(photoData).forEach(view => {
+                    UIState.uploadedViews.clinical[view] = true;
+                });
+                break;
+            }
         }
     } catch (error) {
         console.error('Error collecting tab data:', error);
@@ -1888,58 +2432,94 @@ function updateExerciseSummary(phase) {
 }
 
 /**
- * Save clinical assessment data
+ * Save clinical assessment data with enhanced photo handling
  */
 async function saveClinicalAssessment() {
     try {
-        showLoading('Saving assessment...');
+        showLoading('Saving clinical assessment...');
         
-        // Collect any remaining data
-        if (UIState.currentTab) {
-            collectCurrentTabData(UIState.currentTab);
-        }
+        // Ensure we have the latest photo data
+        collectCurrentTabData('assessment');
         
-        // Add summary notes
-        const summaryNotes = document.getElementById('clinical-summary-notes')?.value || '';
-        UIState.analysisData.clinical.summaryNotes = summaryNotes;
-        
-        // Create complete assessment data
+        // Collect all data
         const assessmentData = {
-            timestamp: new Date().toISOString(),
             mode: 'clinical',
-            version: '1.0',
-            clinic: 'Two Tonys Treatment Clinic',
-            patientId: UIState.currentPatientId,
-            patientName: UIState.currentPatientName,
+            timestamp: new Date().toISOString(),
             ...UIState.analysisData.clinical
         };
         
-        // Save to localStorage and download
-        const filename = `clinical-assessment-${Date.now()}.json`;
-        localStorage.setItem('last-clinical-assessment', JSON.stringify(assessmentData));
-        downloadJSON(assessmentData, filename);
+        // Check for photos to upload
+        const photosToUpload = UIState.analysisData.clinical.photos || {};
+        const hasPhotos = Object.keys(photosToUpload).some(view => 
+            photosToUpload[view] && photosToUpload[view].imageData
+        );
         
-        // Also save to database if connected
-        try {
-            const dbResult = await saveCompleteAssessment(assessmentData);
-            console.log('Assessment saved to database:', dbResult);
-            showNotification('Clinical assessment saved successfully to database!', 'success');
-            
-            // Store the assessment ID for reference
-            UIState.currentAssessmentId = dbResult.assessmentId;
-            UIState.currentPatientId = dbResult.patientId;
-            
-        } catch (dbError) {
-            console.warn('Database save failed, but local save succeeded:', dbError);
-            showNotification('Assessment saved locally (database offline)', 'warning');
+        // If patient exists, save to database
+        if (UIState.currentPatientId) {
+            try {
+                // First, save the assessment without photos
+                const result = await saveCompleteAssessment({
+                    ...assessmentData,
+                    patientId: UIState.currentPatientId
+                });
+                
+                if (result.success) {
+                    console.log('Assessment saved to database:', result);
+                    
+                    // Now upload photos if we have any
+                    if (hasPhotos && result.assessmentId) {
+                        showLoading('Uploading photos securely...');
+                        
+                        try {
+                            const photoUploadResult = await uploadAssessmentPhotos(
+                                result.assessmentId, 
+                                photosToUpload
+                            );
+                            
+                            if (photoUploadResult.success) {
+                                const uploadCount = Object.keys(photoUploadResult.uploads).length;
+                                showNotification(`Assessment saved! ${uploadCount} photos uploaded securely.`, 'success');
+                                
+                                if (photoUploadResult.errors.length > 0) {
+                                    console.warn('Some photos failed to upload:', photoUploadResult.errors);
+                                    showNotification(`Warning: ${photoUploadResult.errors.length} photos failed to upload`, 'warning');
+                                }
+                            } else {
+                                showNotification('Assessment saved, but photo upload failed', 'warning');
+                                console.error('All photo uploads failed:', photoUploadResult.errors);
+                            }
+                        } catch (photoError) {
+                            console.error('Photo upload failed:', photoError);
+                            showNotification('Assessment saved, but photo upload failed', 'warning');
+                        }
+                    } else {
+                        showNotification('Assessment saved to database successfully!', 'success');
+                    }
+                } else {
+                    throw new Error('Assessment save failed');
+                }
+            } catch (dbError) {
+                console.error('Database save failed:', dbError);
+                showNotification('Database save failed, but local file was saved', 'warning');
+            }
+        } else if (hasPhotos) {
+            // No patient ID but we have photos - warn about photo loss
+            showNotification('Photos cannot be saved without a patient record. Create a patient first.', 'warning');
         }
         
+        // Always save locally as backup
+        downloadJSON(assessmentData, 'clinical-assessment.json');
+        
+        // Generate PDF report
+        generatePDF(assessmentData, 'clinical-assessment.pdf');
+        
         hideLoading();
+        showNotification('Clinical assessment saved successfully!', 'success');
         
     } catch (error) {
-        console.error('Error saving clinical assessment:', error);
         hideLoading();
-        showNotification('Error saving assessment. Please try again.', 'error');
+        console.error('Error saving clinical assessment:', error);
+        showNotification('Failed to save assessment: ' + error.message, 'error');
     }
 }
 
@@ -2028,36 +2608,29 @@ export async function saveQuickResults() {
  */
 async function handleCreatePatient() {
     try {
+        // Use FormValidator for validation
+        const patientCard = document.querySelector('#patient-selection .patient-card');
+        if (!patientCard) {
+            throw new Error('Patient form not found');
+        }
+        
+        // Get form validator instance or create new one
+        let validator = patientCard._validator;
+        if (!validator) {
+            validator = new FormValidator(patientCard);
+            patientCard._validator = validator;
+        }
+        
+        // Validate all fields
+        if (!validator.validateAll()) {
+            // FormValidator will handle error display
+            throw new Error('Validation failed');
+        }
+        
+        // Get validated values
         const name = document.getElementById('new-patient-name').value.trim();
         const dateOfBirth = document.getElementById('new-patient-dob').value;
         const complaints = document.getElementById('new-patient-complaints').value.trim();
-        
-        // Enhanced validation for MVP fields
-        if (!name) {
-            showNotification('Please enter a patient name', 'error');
-            document.getElementById('new-patient-name').focus();
-            throw new Error('Name required');
-        }
-        
-        if (!dateOfBirth) {
-            showNotification('Please enter the patient\'s date of birth', 'error');
-            document.getElementById('new-patient-dob').focus();
-            throw new Error('Date of birth required');
-        }
-        
-        if (!complaints) {
-            showNotification('Please describe the chief complaints', 'error');
-            document.getElementById('new-patient-complaints').focus();
-            throw new Error('Chief complaints required');
-        }
-        
-        // Age validation (optional but recommended)
-        const age = calculateAge(dateOfBirth);
-        if (age < 0 || age > 120) {
-            showNotification('Please enter a valid date of birth', 'error');
-            document.getElementById('new-patient-dob').focus();
-            throw new Error('Invalid date of birth');
-        }
         
         showLoading('Creating patient record...');
         
@@ -2174,7 +2747,9 @@ function showModeContent(mode) {
         }
         
         // Initialize MediaPipe with error handling
-        if (!UIState.pose) {
+        // For advanced mode, we'll initialize EnhancedPoseDetector in analyzePosture
+        // to avoid creating multiple instances
+        if (!UIState.pose && mode !== 'advanced') {
             UIState.pose = initializePose(mode);
         }
         
@@ -2182,6 +2757,11 @@ function showModeContent(mode) {
         if (mode === 'clinical') {
             showTab('clinical', 'client-info');
         }
+        
+        // Re-initialize drag and drop for new upload areas
+        setTimeout(() => {
+            initializeDragAndDrop();
+        }, 100);
         
         showNotification(`${mode.charAt(0).toUpperCase() + mode.slice(1)} mode activated`, 'success');
         
@@ -2309,6 +2889,126 @@ export function restoreSession() {
 }
 
 /**
+ * Initialize drag and drop functionality for upload areas
+ */
+function initializeDragAndDrop() {
+    // Check if already initialized to prevent duplicate listeners
+    if (document.body.dataset.dndInitialized === 'true') {
+        return;
+    }
+    
+    // Mark as initialized
+    document.body.dataset.dndInitialized = 'true';
+    
+    document.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+    
+    document.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+    
+    // Add drag and drop to all upload areas
+    document.querySelectorAll('.upload-area').forEach(area => {
+        area.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            area.classList.add('drag-active');
+        });
+        
+        area.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.target === area || !area.contains(e.relatedTarget)) {
+                area.classList.remove('drag-active');
+            }
+        });
+        
+        area.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        
+        area.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            area.classList.remove('drag-active');
+            
+            const fileInput = area.querySelector('input[type="file"]');
+            if (fileInput && e.dataTransfer.files.length > 0) {
+                // Use the first file only
+                const file = e.dataTransfer.files[0];
+                
+                // Check if it's an image
+                if (file.type.startsWith('image/')) {
+                    // Create a new FileList-like object
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    fileInput.files = dataTransfer.files;
+                    
+                    // Trigger change event
+                    const changeEvent = new Event('change', { bubbles: true });
+                    fileInput.dispatchEvent(changeEvent);
+                } else {
+                    showNotification('Please drop an image file', 'error');
+                }
+            }
+        });
+    });
+}
+
+/**
+ * Handle camera capture button click
+ * @param {HTMLElement} button - The button that was clicked
+ */
+function handleCameraCapture(button) {
+    const mode = button.dataset.mode;
+    const view = button.dataset.view;
+    
+    // For clinical/advanced modes, we need to implement camera capture
+    // For now, we'll use the device camera through the file input with capture attribute
+    const uploadArea = document.getElementById(`${mode}-${view}-upload-area`);
+    if (uploadArea) {
+        const fileInput = uploadArea.querySelector('input[type="file"]');
+        if (fileInput) {
+            // Set capture attribute to camera for direct camera access
+            fileInput.setAttribute('capture', 'camera');
+            fileInput.click();
+            // Reset to environment after click for next time
+            setTimeout(() => {
+                fileInput.setAttribute('capture', 'environment');
+            }, 100);
+        }
+    }
+}
+
+/**
+ * Handle file browse button click
+ * @param {HTMLElement} button - The button that was clicked
+ */
+function handleFileBrowse(button) {
+    const mode = button.dataset.mode;
+    const view = button.dataset.view;
+    
+    // Find the file input and trigger it
+    const uploadArea = document.getElementById(`${mode}-${view}-upload-area`);
+    if (uploadArea) {
+        const fileInput = uploadArea.querySelector('input[type="file"]');
+        if (fileInput) {
+            // Remove capture attribute for file browse
+            fileInput.removeAttribute('capture');
+            fileInput.click();
+            // Restore capture attribute after click
+            setTimeout(() => {
+                fileInput.setAttribute('capture', 'environment');
+            }, 100);
+        }
+    }
+}
+
+/**
  * Check for and offer to restore previous session
  */
 export function checkForPreviousSession() {
@@ -2346,3 +3046,228 @@ export function checkForPreviousSession() {
     
     return false;
 }
+
+/**
+ * Enhanced Form Validation Class
+ */
+class FormValidator {
+    constructor(formElement) {
+        this.form = formElement;
+        this.validators = {
+            required: (value) => value.trim() !== '',
+            email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+            phone: (value) => /^[\d\s\-\+\(\)]+$/.test(value),
+            date: (value) => !isNaN(Date.parse(value)),
+            minLength: (value, min) => value.length >= parseInt(min),
+            maxLength: (value, max) => value.length <= parseInt(max),
+            pattern: (value, pattern) => new RegExp(pattern).test(value),
+            age: (value) => {
+                const age = calculateAge(value);
+                return age >= 0 && age <= 120;
+            }
+        };
+        
+        this.errorMessages = {
+            required: 'This field is required',
+            email: 'Please enter a valid email address',
+            phone: 'Please enter a valid phone number',
+            date: 'Please enter a valid date',
+            minLength: 'Must be at least {param} characters',
+            maxLength: 'Must be no more than {param} characters',
+            pattern: 'Please match the required format',
+            age: 'Please enter a valid date of birth'
+        };
+        
+        this.init();
+    }
+    
+    init() {
+        const inputs = this.form.querySelectorAll('input, textarea, select');
+        
+        inputs.forEach(input => {
+            // Add validation attributes
+            this.setupValidationAttributes(input);
+            
+            // Add real-time validation
+            input.addEventListener('blur', () => this.validateField(input));
+            
+            // Debounced input validation
+            let debounceTimer;
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                
+                if (input.classList.contains('touched')) {
+                    debounceTimer = setTimeout(() => {
+                        this.validateField(input);
+                    }, 300);
+                }
+            });
+            
+            // Mark as touched on first interaction
+            input.addEventListener('focus', () => {
+                input.classList.add('touched');
+            });
+        });
+        
+        // Validate on submit
+        this.form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (this.validateAll()) {
+                this.form.dispatchEvent(new Event('validated'));
+            }
+        });
+    }
+    
+    setupValidationAttributes(field) {
+        // Set up validation rules based on field type and attributes
+        const rules = [];
+        
+        if (field.hasAttribute('required')) {
+            rules.push('required');
+        }
+        
+        if (field.type === 'email') {
+            rules.push('email');
+        }
+        
+        if (field.type === 'tel') {
+            rules.push('phone');
+        }
+        
+        if (field.id === 'new-patient-dob') {
+            rules.push('age');
+        }
+        
+        if (field.hasAttribute('minlength')) {
+            rules.push(`minLength:${field.getAttribute('minlength')}`);
+        }
+        
+        if (field.hasAttribute('maxlength')) {
+            rules.push(`maxLength:${field.getAttribute('maxlength')}`);
+        }
+        
+        if (field.hasAttribute('pattern')) {
+            rules.push(`pattern:${field.getAttribute('pattern')}`);
+        }
+        
+        field.dataset.validate = rules.join('|');
+    }
+    
+    validateField(field) {
+        const rules = field.dataset.validate?.split('|') || [];
+        const label = field.previousElementSibling?.textContent || 
+                     field.placeholder || 
+                     field.name || 
+                     'Field';
+        
+        let isValid = true;
+        let errorMessage = '';
+        
+        for (const rule of rules) {
+            const [ruleName, param] = rule.split(':');
+            const validator = this.validators[ruleName];
+            
+            if (validator && !validator(field.value, param)) {
+                isValid = false;
+                errorMessage = this.getErrorMessage(ruleName, label, param);
+                break;
+            }
+        }
+        
+        this.showFieldFeedback(field, isValid, errorMessage);
+        return isValid;
+    }
+    
+    validateAll() {
+        const inputs = this.form.querySelectorAll('input, textarea, select');
+        let isValid = true;
+        
+        inputs.forEach(input => {
+            input.classList.add('touched');
+            if (!this.validateField(input)) {
+                isValid = false;
+            }
+        });
+        
+        if (!isValid) {
+            // Focus on first invalid field
+            const firstInvalid = this.form.querySelector('.invalid');
+            if (firstInvalid) {
+                firstInvalid.focus();
+                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        
+        return isValid;
+    }
+    
+    showFieldFeedback(field, isValid, errorMessage) {
+        const wrapper = field.closest('.form-group') || field.parentElement;
+        const existingError = wrapper.querySelector('.field-error');
+        
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        field.classList.toggle('invalid', !isValid);
+        field.classList.toggle('valid', isValid && field.value.trim() !== '');
+        
+        if (!isValid && errorMessage) {
+            const error = document.createElement('div');
+            error.className = 'field-error';
+            error.textContent = errorMessage;
+            error.setAttribute('role', 'alert');
+            error.setAttribute('aria-live', 'polite');
+            field.parentNode.appendChild(error);
+            
+            // Announce error to screen readers
+            if (window.announcer) {
+                window.announcer.announceError(errorMessage);
+            }
+        }
+    }
+    
+    getErrorMessage(rule, label, param) {
+        let message = this.errorMessages[rule] || 'Invalid value';
+        
+        // Replace placeholders
+        message = message.replace('{label}', label);
+        message = message.replace('{param}', param);
+        
+        return message;
+    }
+}
+
+/**
+ * Initialize form validation for all forms
+ */
+function initializeFormValidation() {
+    // Patient creation form
+    const patientForm = document.querySelector('#patient-selection .patient-card');
+    if (patientForm) {
+        new FormValidator(patientForm);
+    }
+    
+    // Clinical client form
+    const clientForm = document.getElementById('client-form');
+    if (clientForm) {
+        new FormValidator(clientForm);
+        
+        // Handle form submission
+        clientForm.addEventListener('validated', () => {
+            // Form is valid, proceed to next tab
+            showTab('clinical', 'assessment');
+        });
+    }
+    
+    // Add validation to dynamically created forms
+    document.addEventListener('formCreated', (event) => {
+        const form = event.detail.form;
+        if (form) {
+            new FormValidator(form);
+        }
+    });
+}
+
+// Export for use in other modules
+export { FormValidator }

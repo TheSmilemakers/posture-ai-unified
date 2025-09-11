@@ -6,6 +6,7 @@ cd posture-ai-unified
 python3 -m http.server 3000
 # Open: http://localhost:3000
 # Password: posture2025
+# Skip auth (localhost only): http://localhost:3000?skipAuth=development
 ```
 
 ## 🧪 Test Pages
@@ -13,6 +14,7 @@ python3 -m http.server 3000
 - **PDF Test**: http://localhost:3000/test-pdf.html
 - **Backend Test**: http://localhost:3000/test-backend-integration.html
 - **Complete MVP Test**: http://localhost:3000/test-complete-mvp.html
+- **Auth Security Test**: http://localhost:3000/test-auth-security.html
 
 ## 📊 Database Commands
 ```bash
@@ -53,6 +55,14 @@ git commit -m "your message"
 - **Tables Prefix**: pra_
 - **Session Duration**: 1 hour
 - **PDF Watermark**: "MVP - Clinical Review Required"
+
+## 🔒 Security Notes (MVP)
+- **Development Bypass**: `?skipAuth=development` (localhost only)
+- **Production URL**: https://posture.rajanmaher.com (password required)
+- **API Auth**: Include `Authorization: Bearer posture-api-2025` header
+- **⚠️ TODO**: Implement server-side auth for production
+- **⚠️ TODO**: Use environment variables for secrets
+- **⚠️ TODO**: Add rate limiting and JWT tokens
 
 ## 📱 Mode Features
 ### Quick Mode

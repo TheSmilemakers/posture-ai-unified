@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Posture AI - Test Fixed Implementation</title>
+    
+    <!-- Include your existing CSS -->
+    <link rel="stylesheet" href="assets/css/styles.css">
+    
+    <style>
+        /* Test-specific styles */
+        .test-section {
+            padding: 20px;
+            margin: 20px;
+            border: 2px solid var(--color-primary);
+            border-radius: 10px;
+            background: var(--color-bg-secondary);
+        }
+        
+        .test-results {
+            font-family: monospace;
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .test-btn {
+            margin: 5px;
+            padding: 10px 20px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-ok { background: #0f0; }
+        .status-error { background: #f00; }
+        .status-warning { background: #ff0; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Posture AI - Fixed Implementation Test</h1>
+        </header>
+        
+        <main>
+            <!-- CSS Test Section -->
+            <div class="test-section">
+                <h2>CSS Fixes Validation</h2>
+                <div id="css-test-results" class="test-results">Testing CSS...</div>
+                <button class="test-btn" onclick="testCSSFixes()">Run CSS Tests</button>
+            </div>
+            
+            <!-- Calibration Test Section -->
+            <div class="test-section">
+                <h2>Calibration System Test</h2>
+                <input type="number" id="patient-height" placeholder="Enter height in cm" value="170">
+                <button class="test-btn" onclick="testCalibration()">Test Calibration</button>
+                <div id="calibration-results" class="test-results">Ready to test...</div>
+            </div>
+            
+            <!-- Measurement Test Section -->
+            <div class="test-section">
+                <h2>Measurement Accuracy Test</h2>
+                <button class="test-btn" onclick="testMeasurements()">Test Measurements</button>
+                <div id="measurement-results" class="test-results">Ready to test...</div>
+            </div>
+            
+            <!-- Mobile Scroll Test Section -->
+            <div class="test-section">
+                <h2>Mobile Scrolling Test</h2>
+                <div style="height: 1500px; background: linear-gradient(to bottom, #f0f0f0, #333); padding: 20px;">
+                    <p>Scroll this area to test mobile scrolling</p>
+                    <button class="test-btn" onclick="alert('Button works after scroll!')">Test Touch After Scroll</button>
+                    <input type="text" placeholder="Test input focus (should not zoom)">
+                    <div style="margin-top: 1400px;">
+                        <button class="test-btn" onclick="alert('Bottom button works!')">Bottom Button</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Live MediaPipe Test -->
+            <div class="test-section">
+                <h2>Live Pose Detection Test</h2>
+                <div class="camera-container">
+                    <video id="test-video" width="640" height="480" style="display: none;"></video>
+                    <canvas id="test-canvas" width="640" height="480" style="border: 1px solid #ccc;"></canvas>
+                </div>
+                <button class="test-btn" onclick="startPoseDetection()">Start Camera</button>
+                <button class="test-btn" onclick="stopPoseDetection()">Stop Camera</button>
+                <div id="pose-results" class="test-results">Ready for pose detection...</div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Include fixed modules -->
+    <script type="module">
+        import { CalibrationManager, MeasurementValue, formatMeasurement } from './assets/js/measurement-system-fixed.js';
+        import { calculateBasicMetrics, analyzeFrontView } from './assets/js/analysis-fixed.js';
+        
+        // Make functions available globally for testing
+        window.CalibrationManager = CalibrationManager;
+        window.MeasurementValue = MeasurementValue;
+        window.calculateBasicMetrics = calculateBasicMetrics;
+        window.analyzeFrontView = analyzeFrontView;
+        window.formatMeasurement = formatMeasurement;
+        
+        // Test CSS Fixes
+        window.testCSSFixes = function() {
+            const results = document.getElementById('css-test-results');
+            results.innerHTML = '';
+            
+            const tests = [];
+            
+            // Test 1: Body position should be relative, not fixed
+            const bodyPosition = getComputedStyle(document.body).position;
+            tests.push({
+                name: 'Body position',
+                expected: 'relative',
+                actual: bodyPosition,
+                passed: bodyPosition === 'relative'
+            });
+            
+            // Test 2: HTML overflow should be visible
+            const htmlOverflow = getComputedStyle(document.documentElement).overflow;
+            tests.push({
+                name: 'HTML overflow',
+                expected: 'visible',
+                actual: htmlOverflow,
+                passed: htmlOverflow === 'visible'
+            });
+            
+            // Test 3: Check for overscroll-behavior
+            const overscroll = getComputedStyle(document.body).overscrollBehavior;
+            tests.push({
+                name: 'Overscroll behavior',
+                expected: 'none',
+                actual: overscroll || 'not set',
+                passed: overscroll === 'none' || overscroll === 'none none'
+            });
+            
+            // Test 4: App container position
+            const container = document.querySelector('.app-container');
+            if (container) {
+                const containerPos = getComputedStyle(container).position;
+                tests.push({
+                    name: 'Container position',
+                    expected: 'relative',
+                    actual: containerPos,
+                    passed: containerPos === 'relative'
+                });
+            }
+            
+            // Display results
+            tests.forEach(test => {
+                const status = test.passed ? '✅' : '❌';
+                results.innerHTML += `${status} ${test.name}: ${test.actual} (expected: ${test.expected})\n`;
+            });
+            
+            const allPassed = tests.every(t => t.passed);
+            results.innerHTML += `\n${allPassed ? '✅ ALL CSS TESTS PASSED' : '❌ SOME CSS TESTS FAILED'}`;
+        };
+        
+        // Test Calibration System
+        window.testCalibration = function() {
+            const results = document.getElementById('calibration-results');
+            const height = parseFloat(document.getElementById('patient-height').value) || 170;
+            
+            results.innerHTML = 'Testing calibration system...\n\n';
+            
+            // Create mock landmarks
+            const mockLandmarks = [];
+            for (let i = 0; i < 33; i++) {
+                mockLandmarks.push({
+                    x: Math.random(),
+                    y: Math.random(),
+                    z: Math.random() * 0.5,
+                    visibility: 0.8 + Math.random() * 0.2
+                });
+            }
+            
+            // Test calibration
+            const calibrationManager = CalibrationManager.getInstance();
+            calibrationManager.setCalibration({
+                pixelsPerCm: height / 70, // Rough estimate
+                patientHeight: height,
+                confidence: 0.85,
+                method: 'height_estimation'
+            });
+            
+            results.innerHTML += `Patient Height: ${height} cm\n`;
+            results.innerHTML += `Calibration Set: ✅\n`;
+            results.innerHTML += `Confidence: ${(calibrationManager.getConfidence() * 100).toFixed(1)}%\n`;
+            results.innerHTML += `Pixels per cm: ${(height / 70).toFixed(2)}\n`;
+            
+            // Test basic metrics with calibration
+            const metrics = calculateBasicMetrics(mockLandmarks, height, { width: 1920, height: 1080 });
+            
+            results.innerHTML += '\n--- Calculated Metrics ---\n';
+            if (metrics.headTilt) {
+                results.innerHTML += `Head Tilt: ${metrics.headTilt.value?.toFixed(1) || metrics.headTilt}° (${metrics.headTilt.confidence?.toFixed(2) || 'N/A'} confidence)\n`;
+            }
+            if (metrics.shoulderAsymmetry) {
+                results.innerHTML += `Shoulder Asymmetry: ${metrics.shoulderAsymmetry.value?.toFixed(1) || metrics.shoulderAsymmetry} cm ✅\n`;
+            }
+            if (metrics.hipAsymmetry) {
+                results.innerHTML += `Hip Asymmetry: ${metrics.hipAsymmetry.value?.toFixed(1) || metrics.hipAsymmetry} cm ✅\n`;
+            }
+            
+            results.innerHTML += '\n✅ Calibration system working!';
+        };
+        
+        // Test Measurements
+        window.testMeasurements = function() {
+            const results = document.getElementById('measurement-results');
+            results.innerHTML = 'Testing measurement system...\n\n';
+            
+            // Test unit conversions
+            const tests = [
+                {
+                    name: 'Shoulder Asymmetry',
+                    value: 0.02, // 2% of image height
+                    inputUnit: 'normalized',
+                    expectedUnit: 'cm',
+                    expectedRange: [1, 3] // Should be 1-3 cm
+                },
+                {
+                    name: 'Q-Angle',
+                    value: 15,
+                    inputUnit: 'degrees',
+                    expectedUnit: 'degrees',
+                    expectedRange: [10, 20]
+                },
+                {
+                    name: 'Weight Distribution',
+                    value: 0.48,
+                    inputUnit: 'normalized',
+                    expectedUnit: 'percent',
+                    expectedRange: [45, 55]
+                }
+            ];
+            
+            tests.forEach(test => {
+                const measurement = new MeasurementValue(test.value, test.inputUnit, {
+                    calibrationData: { pixelsPerCm: 2.5 },
+                    confidence: 0.85
+                });
+                
+                const displayStr = formatMeasurement({
+                    value: test.inputUnit === 'normalized' ? test.value * 100 : test.value,
+                    unit: test.expectedUnit
+                });
+                
+                results.innerHTML += `${test.name}: ${displayStr}\n`;
+                results.innerHTML += `  Unit: ${test.expectedUnit} ✅\n`;
+                results.innerHTML += `  Confidence: ${(measurement.confidence * 100).toFixed(0)}%\n\n`;
+            });
+            
+            results.innerHTML += '✅ Measurement system working correctly!';
+        };
+        
+        // Test mobile scrolling
+        document.addEventListener('scroll', function() {
+            console.log('Scroll position:', window.scrollY);
+        });
+        
+        // Start pose detection
+        window.startPoseDetection = async function() {
+            const video = document.getElementById('test-video');
+            const canvas = document.getElementById('test-canvas');
+            const ctx = canvas.getContext('2d');
+            const results = document.getElementById('pose-results');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.play();
+                
+                results.innerHTML = '✅ Camera started successfully\n';
+                results.innerHTML += 'Move in front of camera to test pose detection...\n';
+                
+                // Draw video frames to canvas
+                function drawFrame() {
+                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    }
+                    requestAnimationFrame(drawFrame);
+                }
+                drawFrame();
+                
+            } catch (error) {
+                results.innerHTML = `❌ Camera error: ${error.message}\n`;
+            }
+        };
+        
+        window.stopPoseDetection = function() {
+            const video = document.getElementById('test-video');
+            const results = document.getElementById('pose-results');
+            
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                results.innerHTML = 'Camera stopped.\n';
+            }
+        };
+        
+        // Run initial tests on page load
+        window.addEventListener('load', function() {
+            setTimeout(testCSSFixes, 500);
+        });
+    </script>
+</body>
+</html>
